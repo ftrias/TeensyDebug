@@ -11,7 +11,7 @@
 #include <Arduino.h>
 
 
-#define DEBUG_INTERNAL
+#define GDB_DEBUG_INTERNAL
 
 #include "TeensyDebug.h"
 

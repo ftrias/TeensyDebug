@@ -19,6 +19,7 @@ https://github.com/turboscrew/rpi_stub
 https://www.embecosm.com/appnotes/ean4/embecosm-howto-rsp-server-ean4-issue-2.html
 https://github.com/redox-os/binutils-gdb/blob/master/gdb/arm-tdep.c
 https://github.com/redox-os/binutils-gdb/blob/master/gdb/stubs/i386-stub.c
+https://sourceware.org/gdb/current/onlinedocs/gdb/Remote-Protocol.html#Remote-Protocol
 
 */
 

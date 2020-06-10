@@ -8,7 +8,7 @@
 #endif
 
 // If this is used internally, not need to remap
-#ifndef DEBUG_INTERNAL
+#ifndef GDB_DEBUG_INTERNAL
 #ifdef HAS_FP_MAP
 // rename the original setup() because we need to hijack it
 #define setup setup_main

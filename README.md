@@ -83,7 +83,7 @@ After compiling and uploading this program, Teensy will have two serial ports. O
 
 You also need to find the GDB executable that came with Teensyduino. On the Mac it is located in `/Applications/Teensyduino.app/Contents/Java/hardware//tools/arm/bin/arm-none-eabi-gdb`.
 
-Next, find the ELF file created. Arduino puts it in a temporary directory, but forunately, it is the same directory for the duration of Arduino. If you look at the output, you should see multiple mentions of a file ending with ".elf". For example: `/var/folders/j1/8hkyfp_96zl_lgp19b19pbj80000gp/T/arduino_build_133762/breakpoint_test.ino.elf`
+Next, find the ELF file created. Arduino puts it in a temporary directory, but forunately, it is the same directory for the duration of Arduino. If you look at the output, you should see multiple mentions of a file ending with ".elf". For example: `/var/folders/j1/8hkyfp_96zl_lgp19b19pbj80000gp/T/arduino_build_133762/breakpoint_test.ino.elf`.
 
 Running GDB yields:
 
@@ -145,6 +145,8 @@ This is how it works with Teensy.
 5. If a function is placed in RAM, you can dynamically insert/remove SVC calls in the code, in the same way that standard debuggers work. Teensy 4 places all user code in RAM. On Teensy 3, you can put a function by specifying FASTRAM. Again, breakpoints like this can be set and enabled/disabled by GDB.
 
 6. On the Teensy 3.2, we could as well use the Flash Patch Block to set and remove SVC calls using patching. Thus, you can dynamically set breakpoints in flash. Teensy 4 doesn't support this, but since it places code in RAM, that's probably not a big deal.
+
+7. It will take over the SVC, software and all fault interrupts. The software interrupt will be "chained" so it will process it's own interrupts and any other interrupts will be sent to the original interrupt handler. SVC should be chained as well in the future.
 
 Future considerations
 ---------------------------------------------
