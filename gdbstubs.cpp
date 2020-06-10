@@ -10,6 +10,9 @@
  */
 #include <Arduino.h>
 
+#define CPU_RESTART_ADDR (uint32_t *)0xE000ED0C
+#define CPU_RESTART_VAL 0x5FA0004
+#define CPU_RESTART (*CPU_RESTART_ADDR = CPU_RESTART_VAL);
 
 #define GDB_DEBUG_INTERNAL
 
@@ -495,6 +498,7 @@ int process_F(const char *cmd, char *result) {
 int process_R(const char *cmd, char *result) {
   // _reboot_Teensyduino_();
   // _restart_Teensyduino_();
+  CPU_RESTART;
   strcpy(result, "");    
   return 0;
 }
