@@ -492,6 +492,13 @@ int process_F(const char *cmd, char *result) {
   return 0;
 }
 
+int process_R(const char *cmd, char *result) {
+  // _reboot_Teensyduino_();
+  // _restart_Teensyduino_();
+  strcpy(result, "");    
+  return 0;
+}
+
 /**
  * @brief Process a command by calling appropriate delegation function
  * 
@@ -508,6 +515,8 @@ int processCommand(const char *cmd, char *result) {
     case 'c': return process_c(cmd, result);
     case 's': return process_s(cmd, result);
     case 'F': return process_F(cmd, result);
+    case 'R': return process_R(cmd, result);
+    case 'r': return process_R(cmd, result);
     
     case '?': return process_question(cmd, result);
 //    case 'B': return process_B(cmd, result);
