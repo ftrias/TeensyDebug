@@ -185,7 +185,7 @@ void sendResult(const char *result) {
   putDebugChar('#');
   putDebugChar(int2hex[checksum >> 4]);
   putDebugChar(int2hex[checksum & 0x0F]);
-  Serial.println(result);
+  // Serial.println(result);
 }
 
 // global flag to enabling or suspending debug system
@@ -589,7 +589,7 @@ void processGDBinput() {
   }
   *pcmd = 0;
   
-  Serial.print("got command:");Serial.println(cmd);
+  // Serial.print("got command:");Serial.println(cmd);
   
   c = getDebugChar();
   checksum = hex(c) << 4;

@@ -83,10 +83,13 @@ After compiling and uploading this program, Teensy will have two serial ports. O
 
 You also need to find the GDB executable that came with Teensyduino. On the Mac it is located in `/Applications/Teensyduino.app/Contents/Java/hardware//tools/arm/bin/arm-none-eabi-gdb`.
 
+Next, find the ELF file created. Arduino puts it in a temporary directory, but forunately, it is the same directory for the duration of Arduino. If you look at the output, you should see multiple mentions of a file ending with ".elf". For example: `/var/folders/j1/8hkyfp_96zl_lgp19b19pbj80000gp/T/arduino_build_133762/breakpoint_test.ino.elf`
+
 Running GDB yields:
 
 ```
-$ /Applications/Teensyduino.app/Contents/Java/hardware//tools/arm/bin/arm-none-eabi-gdb
+$ /Applications/Teensyduino.app/Contents/Java/hardware//tools/arm/bin/arm-none-eabi-gdb /var/folders/j1/8hkyfp_96zl_lgp19b19pbj80000gp/T/arduino_build_133762/breakpoint_test.ino.elf
+
 GNU gdb (GNU Tools for ARM Embedded Processors) 7.10.1.20160923-cvs
 Copyright (C) 2015 Free Software Foundation, Inc.
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
