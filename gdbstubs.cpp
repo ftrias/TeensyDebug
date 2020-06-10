@@ -9,7 +9,7 @@
  * 
  */
 #include <Arduino.h>
-#include <HardwareSerial.h>
+
 
 #define DEBUG_INTERNAL
 
@@ -20,7 +20,10 @@
  * devInit() is not standard. It must be called at initialization.
  * 
  */
-#define dev Serial1
+// #include <HardwareSerial.h>
+// #define dev Serial1
+
+Stream *dev;
 
 /**
  * @brief Get the next character from the serial
@@ -29,15 +32,15 @@
  */
 int getDebugChar() {
   unsigned int timeout = millis() + 1000;
-  while(dev.available() <= 0) {
+  while(dev->available() <= 0) {
     delay(1);
     if (millis() > timeout) {
-      Serial.println("{timeout}");
+      // Serial.println("{timeout}");
       return -1;
     }
   }
-  char c = dev.read();
-  Serial.print("{");Serial.print(c);Serial.print("}");
+  char c = dev->read();
+  // Serial.print("{");Serial.print(c);Serial.print("}");
   return c;
 }
 
@@ -47,17 +50,35 @@ int getDebugChar() {
  * @param c Character to send (one 8-bit byte)
  */
 void putDebugChar(int c) {
-  Serial.print("[");Serial.print((char)c);Serial.print("]");
-  dev.write(c);
+  // Serial.print("[");Serial.print((char)c);Serial.print("]");
+  dev->write(c);
+}
+
+
+/**
+ * @brief Return 1 or more if there is data to read
+ * 
+ * @return int Number of characters to read
+ */
+int hasDebugChar() {
+  // Serial.println("has?");
+  return dev->available();
 }
 
 /**
  * @brief Initialize serial
  * 
  */
-void devInit() {
-  dev.begin(9600);
+void devInit(Stream *device = NULL) {
+  if (device) {
+    dev = device;
+  }
+  else {
+    dev = &Serial1;
+    Serial1.begin(9600);
+  }
 }
+
 
 // Signal codes for ARM faults
 const char *signal_text[] = {
@@ -105,10 +126,11 @@ int hex(unsigned char ch) {
  * @param sz Number of bytes to convert
  * @return char* The address of the last character (a \0) in buff
  */
-char *mem2hex(char *buff, void *addr, int sz) {
+char *mem2hex(char *buff, const void *addr, int sz) {
   for (int i = 0; i < sz; i++) {
     uint8_t b = ((uint8_t*)addr)[i];
-    *buff++ = int2hex[b];
+    *buff++ = int2hex[b >> 4];
+    *buff++ = int2hex[b & 0x0F];
   }
   *buff = 0;
   return buff;
@@ -163,7 +185,7 @@ void sendResult(const char *result) {
   putDebugChar('#');
   putDebugChar(int2hex[checksum >> 4]);
   putDebugChar(int2hex[checksum & 0x0F]);
-//  dev.flush();
+  Serial.println(result);
 }
 
 // global flag to enabling or suspending debug system
@@ -184,6 +206,8 @@ extern int debug_id;
 // from debug indicting we are "stepping" instructions
 extern int debugstep;
 
+char send_message[256];
+
 /**
  * @brief Routing for processing breakpoints
  * 
@@ -199,6 +223,7 @@ void process_onbreak() {
     delay(10);
     yield();
   }
+  debug_id = 0;
 }
 #pragma GCC pop_options
 
@@ -277,7 +302,7 @@ int process_m(const char *cmd, char *result) {
     hexToInt(&cmd, &sz);
   }
 
-  Serial.print("read at ");Serial.println(addr, HEX);
+  // Serial.print("read at ");Serial.println(addr, HEX);
 
   if (addr == 0) {
     strcpy(result, "E01");
@@ -396,7 +421,10 @@ int process_z(const char *cmd, char *result) {
   hexToInt(&cmd, &addr);
 //  cmd++;
 //  hexToInt(&cmd, &sz);
-  if (debug.clearBreakpoint((void*)addr)) {
+  if (addr == 0) {
+    strcpy(result, "E01");
+  }
+  else if (debug.clearBreakpoint((void*)addr)) {
     strcpy(result, "E01");
     strcpy(result, "OK");
   }
@@ -422,7 +450,10 @@ int process_Z(const char *cmd, char *result) {
   // optional size not used because we only support Thumb
 //  cmd++;
 //  hexToInt(&cmd, &sz);
-  if (debug.setBreakpoint((void*)addr)) {
+  if (addr == 0) {
+    strcpy(result, "E01");
+  }
+  else if (debug.setBreakpoint((void*)addr)) {
     strcpy(result, "E01");
   }
   else {
@@ -443,6 +474,20 @@ int process_q(const char *cmd, char *result) {
     strcpy(result, "PacketSize=1024");
     return 0;
   }
+  else if (strncmp(cmd, "qPing", 7) == 0) {
+    const char *msg = "Test message";
+    send_message[0] = 'O';
+    mem2hex(send_message+1, msg, strlen(msg));
+    // sprintf(send_message, "Fwrite,2,%x,%x", (int)&msg, strlen(msg));
+    strcpy(result, "");    
+    return 0;
+  }
+  strcpy(result, "");    
+  return 0;
+}
+
+int process_F(const char *cmd, char *result) {
+  Serial.println(cmd);
   strcpy(result, "");    
   return 0;
 }
@@ -462,6 +507,7 @@ int processCommand(const char *cmd, char *result) {
     case 'M': return process_M(cmd, result);
     case 'c': return process_c(cmd, result);
     case 's': return process_s(cmd, result);
+    case 'F': return process_F(cmd, result);
     
     case '?': return process_question(cmd, result);
 //    case 'B': return process_B(cmd, result);
@@ -481,30 +527,30 @@ void processGDBinput() {
   char result[1024];
 
   // no data? do nothing
-  if (dev.available() <= 0) return;
+  if (! hasDebugChar()) return;
 
   int c = getDebugChar();
 
   if (c < 0) {
-    Serial.println("Error reading");
+    // Serial.println("Error reading");
     return;
   }
 
   // GDB ack'd our last command; don't do anything yet with this
   if (c == '+') {
-    Serial.println("ACK");
+    // Serial.println("ACK");
     return;
   }
 
   // GDB had a problem with last command; should resend. TODO
   if (c == '-') {
-    Serial.println("NAK");
+    // Serial.println("NAK");
     return;
   }
 
   // User hit Ctrl-C or other break
   if (c == 0x03) {
-    Serial.println("Ctrl-C");
+    // Serial.println("Ctrl-C");
     cause_break = 1; // later?
     return;
   }
@@ -512,8 +558,8 @@ void processGDBinput() {
   // If we don't have a valid start command, then something went wrong so
   // we just ignore it.
   if (c != '$') {
-    Serial.print("Bad char: ");
-    Serial.println((char)c, HEX);
+    // Serial.print("Bad char: ");
+    // Serial.println((char)c, HEX);
     return; // wait for start char
   }
 
@@ -530,7 +576,7 @@ void processGDBinput() {
     c = getDebugChar();
 
     if (c == -1) {
-      Serial.println("read error");
+      // Serial.println("read error");
       putDebugChar('-');
       return;
     }
@@ -543,16 +589,15 @@ void processGDBinput() {
   }
   *pcmd = 0;
   
-  Serial.print("got command:");
-  Serial.println(cmd);
+  Serial.print("got command:");Serial.println(cmd);
   
   c = getDebugChar();
   checksum = hex(c) << 4;
   c = getDebugChar();
   checksum += hex(c);
   if (checksum != calcChecksum(cmd)) {
-    Serial.println("bad checksum");
-    Serial.println(calcChecksum(cmd), HEX);
+    // Serial.println("bad checksum");
+    // Serial.println(calcChecksum(cmd), HEX);
     putDebugChar('-');
     return;
   }
@@ -575,13 +620,19 @@ void processGDBinput() {
  * 
  */
 void processGDB() {
-  // static unsigned int nexttick = millis() + 1000;
-  // if (millis() > nexttick) {
-  //   Serial.println("tick");
-  //   nexttick += 1000;
-  // }
+#if 0
+  static unsigned int nexttick = millis() + 1000;
+  if (millis() > nexttick) {
+    Serial.println("tick");
+    nexttick += 1000;
+  }
+#endif
   if (! debug_active) return;
   processGDBinput();
+  if (send_message[0]) {
+    sendResult(send_message);
+    send_message[0] = 0;
+  }
   if (cause_break) {
     cause_break = 0;
     asm volatile("svc 0x12");
@@ -591,13 +642,19 @@ void processGDB() {
 // void setup_main();
 
 IntervalTimer gdb_timer;
-void gdb_init() {
-  if (debug_active) {
-    devInit();
-    gdb_timer.begin(processGDB, 1000);
+void gdb_init(Stream *device) {
+  if (device == NULL) {
+    debug_active = 0;
+  }
+  else {
+    // Serial.println("GDB stub active");
+    send_message[0] = 0;
+    debug_active = 1;
+    devInit(device);
+    gdb_timer.begin(processGDB, 5000);
     debug.setCallback(process_onbreak);
     // We could halt at startup, but maybe it's best to let user 
     // explicitly do so with a breakpoint(n)
-//    debug.setBreakpoint(setup_main, 1);
+    //    debug.setBreakpoint(setup_main, 1);
   }
 }

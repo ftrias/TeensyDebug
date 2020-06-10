@@ -1,11 +1,14 @@
 #include "TeensyDebug.h"
+#include "HardwareSerial.h"
+
+#pragma GCC optimize ("O0")
 
 volatile int mark = 45;
 volatile int mark2 = 55;
 
 void break_me() {
   Serial.println("BREAK!");
-  Serial.println(debug.getRegister("pc"), HEX);
+//  Serial.println(debug.getRegister("pc"), HEX);
 }
 
 //DEBUGRUN
@@ -30,24 +33,27 @@ void level1() {
   level2();
 }
 
-void setup() {  
+void setup() {
+  debug.begin();
   delay(3000);
   Serial.begin(115200);
+  Serial1.begin(9600);
+  debug.begin(Serial1);
   
 //  debug.setCallback(break_me);
 //  debug.setBreakpoint(testme, 1);
 
-  *(int*)0 = 0;
+//  *(int*)0 = 0;
 
 //  breakpoint_enable(0);
 //  breakpoint(0);
 }
 
-extern int debugcount;
+//extern int debugcount;
 
 void loop() {
-//  level1();
-  Serial.print("act=");Serial.println(debugcount);
+  level1();
+//  Serial.print("act=");Serial.println(debugcount);
   Serial.print("mark=");Serial.println(mark);
   delay(2000);
 }

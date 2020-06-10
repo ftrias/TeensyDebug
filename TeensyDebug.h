@@ -9,8 +9,10 @@
 
 // If this is used internally, not need to remap
 #ifndef DEBUG_INTERNAL
+#ifdef HAS_FP_MAP
 // rename the original setup() because we need to hijack it
 #define setup setup_main
+#endif
 #endif
 
 int hcdebug_isEnabled(int n);
@@ -23,6 +25,8 @@ uint32_t debug_getRegister(const char *reg);
 
 class Debug {
 public:
+  int begin(Stream *device = NULL);
+  int begin(Stream &device) { return begin(&device); }
   int setBreakpoint(void *p, int n=1);
   int clearBreakpoint(void *p, int n=1);
   void setCallback(void (*c)());
@@ -34,10 +38,6 @@ extern Debug debug;
 #define breakpoint_enable(n) {hcdebug_setBreakpoint(n);}
 #define halt() {asm volatile("svc #0x11");}
 
-#define DEBUGRUN FASTRUN
-
-// set optimizations to 0 so that instructions will match
-// C statements; otherwise, gcc will reorg code
-#pragma GCC optimize("O0")
+#define DEBUGRUN __attribute__ ((section(".fastrun"), noinline, noclone ))
 
 #endif

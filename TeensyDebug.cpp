@@ -1,5 +1,5 @@
 /**
- * @brief TeensyDebug library. Used by gdb stub and also stand-alone.
+ * @brief TeensyDebug gdb stub.
  * 
  */
 
@@ -19,6 +19,7 @@ https://github.com/turboscrew/rpi_stub
 https://www.embecosm.com/appnotes/ean4/embecosm-howto-rsp-server-ean4-issue-2.html
 https://github.com/redox-os/binutils-gdb/blob/master/gdb/arm-tdep.c
 https://github.com/redox-os/binutils-gdb/blob/master/gdb/stubs/i386-stub.c
+
 */
 
 #include <Arduino.h>
@@ -52,6 +53,10 @@ https://github.com/redox-os/binutils-gdb/blob/master/gdb/stubs/i386-stub.c
 #define FP_LAR   (*(unsigned int*) 0xE0000FB0)
 #define FP_LSR   (*(unsigned int*) 0xE0000FB4)
 
+//
+// Need to know where RAM starts/stops so we know where
+// dynamic breakpoints are possible
+//
 
 #ifdef __MK20DX256__
 #define RAM_START ((void*)0x1FFF8000)
@@ -63,12 +68,16 @@ https://github.com/redox-os/binutils-gdb/blob/master/gdb/stubs/i386-stub.c
 #define RAM_END   ((void*)0x5FFFFFFF)
 #endif
 
-/*
+/***********************************************
+ * 
  * Breakpoint setup
+ * 
  */
 
-void *breakpoints[32];
-uint16_t *remap_table;
+/**
+ * @brief Software RAM breakpoints
+ * 
+ */
 
 const int sw_breakpoint_count = 32;
 void *sw_breakpoint_addr[sw_breakpoint_count];
@@ -81,7 +90,7 @@ int swdebug_clearBreakpoint(void *p) {
       sw_breakpoint_addr[i] = 0;
       uint16_t *memory = (uint16_t*)addr;
       *memory = sw_breakpoint_code[i];
-      Serial.print("restore ");Serial.print(addr, HEX);Serial.print("=");Serial.println(*memory, HEX);
+      // Serial.print("restore ");Serial.print(addr, HEX);Serial.print("=");Serial.println(*memory, HEX);
       return 0;
     }
   }
@@ -95,7 +104,7 @@ int swdebug_setBreakpoint(void *p) {
       sw_breakpoint_addr[i] = (void*)addr;
       uint16_t *memory = (uint16_t*)addr;
       sw_breakpoint_code[i] = *memory;
-      Serial.print("overwrite ");Serial.print(addr, HEX);Serial.print(" from ");Serial.println(*memory, HEX);
+      // Serial.print("overwrite ");Serial.print(addr, HEX);Serial.print(" from ");Serial.println(*memory, HEX);
       *memory = 0xdf10; // SVC 10
       return 0;
     }
@@ -114,6 +123,16 @@ int swdebug_isBreakpoint(void *p) {
 }
 
 #ifdef HAS_FP_MAP
+
+/**
+ * @brief Hardware breakpoints, including memory remapping
+ * Teensy doesn't support disabling C_DEBUGEN so unfortunately
+ * it is not possible to use Cortex debugging features.
+ * 
+ */
+
+void *hw_breakpoints[32];
+uint16_t *hw_remap_table;
 
 int hwdebug_clearBreakpoint(void *p, int n) {
   FP_COMP(n) = 0;
@@ -149,12 +168,12 @@ int hwdebug_setBreakpoint(void *p, int n) {
 
 void hwdebug_disableBreakpoint(int n) {
   FP_COMP(n) &= 0xFFFFFFFE;
-  Serial.print("break ");Serial.print(n);Serial.println(" disable");
+  // Serial.print("break ");Serial.print(n);Serial.println(" disable");
 }
 
 void hwdebug_enableBreakpoint(int n) {
   FP_COMP(n) |= 1;
-  Serial.print("break ");Serial.print(n);Serial.println(" enable");
+  // Serial.print("break ");Serial.print(n);Serial.println(" enable");
 }
 
 int hwdebug_getBreakpoint(void *p) {
@@ -176,6 +195,11 @@ int hwdebug_isBreakpoint(void *p) {
 }
 
 #endif
+
+/**
+ * @brief Hard coded breakpoints
+ * 
+ */
 
 const int hc_breakpoint_count = 32;
 void *hc_breakpoint_addr[hc_breakpoint_count];
@@ -216,6 +240,15 @@ void hcdebug_tripBreakpoint(int n) {
   hc_breakpoint_trip = n;
 }
 
+/**
+ * @brief Wrapper functions that call corresponding breakpoint functions.
+ * 
+ */
+
+/**
+ * @brief Initialize the breakpoint system and clear storage
+ * 
+ */
 void debug_initBreakpoints() {
   for(int i=0; i<sw_breakpoint_count; i++) {
     sw_breakpoint_addr[i] = 0;
@@ -233,7 +266,16 @@ void debug_initBreakpoints() {
 #endif
 }
 
+
+/**
+ * @brief Clear the given breakpoint
+ * 
+ * @param p Pointer to location with breakpoint
+ * @param n Optional slot for hardware breakpoints
+ * @return int 0 if success; -1 failure
+ */
 int debug_clearBreakpoint(void *p, int n) {
+  // Serial.print("clear ");Serial.println((int)p,HEX);
   if (p >= RAM_START && p <= RAM_END) {
     return swdebug_clearBreakpoint(p);
   }
@@ -249,7 +291,15 @@ int debug_clearBreakpoint(void *p, int n) {
   }
 }
 
+/**
+ * @brief Set a new breakpoint
+ * 
+ * @param p Pointer to location to set breakpoint
+ * @param n Optional slot for hardware breakpoints
+ * @return int 0 = success; -1 = failure
+ */
 int debug_setBreakpoint(void *p, int n) {
+  // Serial.print("set ");Serial.println((int)p,HEX);
   if (p >= RAM_START && p <= RAM_END) {
     return swdebug_setBreakpoint(p);
   }
@@ -265,6 +315,12 @@ int debug_setBreakpoint(void *p, int n) {
   }
 }
 
+/**
+ * @brief Return if there is a breakpoint at location
+ * 
+ * @param p Pointer to location
+ * @return int 1 = there is one; 0 = there isn't one
+ */
 int debug_isBreakpoint(void *p) {
   if (p >= RAM_START && p <= RAM_END) {
     return swdebug_isBreakpoint(p);
@@ -364,13 +420,15 @@ void debug_action() {
 
 void debug_monitor() {
   uint32_t breakaddr = save_registers.pc - 2;
-  
+
+  // Serial.print("break at ");Serial.println(breakaddr, HEX);
+
   // is this the first breakpoint or are we in a sequence?
   if (debugactive == 0) {
     // Adjust original SP to before the interrupt call
     save_registers.sp += 20;
 
-    // Serial.print("break at ");Serial.println(breakaddr, HEX);
+    // Serial.print("stop at ");Serial.println(breakaddr, HEX);
 
     if (callback) {
       callback();
@@ -461,6 +519,9 @@ void debug_monitor() {
     "str r11, [r0, #60] \n" \
     "str sp, [r0, #64] \n"
 
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
+
 void (*original_software_isr)() = NULL;
 
 __attribute__((noinline, naked))
@@ -495,10 +556,7 @@ void svcall_isr() {
   asm volatile("pop {pc}");
 }
 
-#pragma GCC push_options
-#pragma GCC optimize ("O0")
 __attribute__((naked))
-
 void svc_call_table() {
   asm volatile(
     "svc #0x10 \n"
@@ -572,20 +630,23 @@ void flash_blink(int n) {
 int debug_crash = 0;
 void hard_fault_debug(int n) {
   // if (debug_crash) flash_blink(n);
-  Serial1.print("****FAULT ");
-  Serial1.println(hard_fault_debug_text[n]);
-  Serial1.print("r0=");Serial1.println(stack->r0, HEX);
-  Serial1.print("r1=");Serial1.println(stack->r1, HEX);
-  Serial1.print("r2=");Serial1.println(stack->r2, HEX);
-  Serial1.print("r3=");Serial1.println(stack->r3, HEX);
-  Serial1.print("r12=");Serial1.println(stack->r12, HEX);
-  Serial1.print("lr=0x");Serial1.println(stack->lr, HEX);
-  Serial1.print("pc=0x");Serial1.println(stack->pc, HEX);
+  Serial.print("****FAULT ");
+  Serial.println(hard_fault_debug_text[n]);
+  Serial.print("r0=");Serial.println(stack->r0, HEX);
+  Serial.print("r1=");Serial.println(stack->r1, HEX);
+  Serial.print("r2=");Serial.println(stack->r2, HEX);
+  Serial.print("r3=");Serial.println(stack->r3, HEX);
+  Serial.print("r12=");Serial.println(stack->r12, HEX);
+  Serial.print("lr=0x");Serial.println(stack->lr, HEX);
+  Serial.print("pc=0x");Serial.println(stack->pc, HEX);
   stack->pc += 2;
   debug_crash = 1;
 }
 
 // uint32_t hard_fault_debug_addr = (uint32_t)hard_fault_debug;
+
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
 
 #define xfault_isr_stack(fault) \
   asm volatile(SAVE_REGISTERS); \
@@ -604,6 +665,8 @@ __attribute__((noinline, naked)) void hard_fault_isr(void) { fault_isr_stack(2);
 __attribute__((noinline, naked)) void memmanage_fault_isr(void) { fault_isr_stack(3); } 
 __attribute__((noinline, naked)) void bus_fault_isr(void)  { fault_isr_stack(4); }
 __attribute__((noinline, naked)) void usage_fault_isr(void)  { fault_isr_stack(5); }
+
+#pragma GCC pop_options
 
 /**
  * Initialization code
@@ -667,7 +730,7 @@ void debug_init() {
 
 // We will rename the original setup() to this by using a #define
 void setup_main();
-void gdb_init();
+void gdb_init(Stream *device);
 
 #ifdef HAS_FP_MAP
 
@@ -684,21 +747,17 @@ void __attribute__((naked)) setup() {
   asm volatile("mov %0, sp" : "=r" (save_stack) );   // save the location
 #endif
   asm volatile("push {lr}");                          // save the return address
-  debug_init();                                       // perform debug initialization
-  gdb_init();
   setup_main();                                       // call the "real" setup function
   asm volatile("pop {pc}");                           // get original return address
 }
 
-#else
-
-void setup() {
-  debug_init();                                       // perform debug initialization
-  gdb_init();
-  setup_main();                                       // call the "real" setup function
-}
-
 #endif
+
+int debug_begin(Stream *device) {
+  debug_init();                                       // perform debug initialization
+  gdb_init(device);
+  return 1;
+}
 
 /**
  * Class
@@ -706,6 +765,7 @@ void setup() {
 
 #include "TeensyDebug.h"
 
+int Debug::begin(Stream *device) { return debug_begin(device); }
 int Debug::setBreakpoint(void *p, int n) { return debug_setBreakpoint(p, n); }
 int Debug::clearBreakpoint(void *p, int n) { return debug_clearBreakpoint(p, n); }
 void Debug::setCallback(void (*c)()) { callback = c; }
