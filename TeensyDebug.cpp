@@ -524,6 +524,7 @@ void debug_monitor() {
 #pragma GCC optimize ("O0")
 
 void (*original_software_isr)() = NULL;
+void (*original_svc_isr)() = NULL;
 
 __attribute__((noinline, naked))
 void debug_call_isr() {
@@ -539,6 +540,7 @@ void debug_call_isr() {
     "str sp, [r0] \n"
     "push {lr} \n");
   debug_monitor();              // process the debug event
+  debugenabled = 0;
   asm volatile("pop {pc}");
 }
 
@@ -553,7 +555,15 @@ __attribute__((noinline, naked))
 void svcall_isr() {
   asm volatile(SAVE_REGISTERS);
   asm volatile("push {lr}");
-  debug_call_isr_setup();
+  uint8_t *memory = (uint8_t*)stack->pc;
+  if (*memory == 0xdf0a || *memory == 0xdf0b || *memory == 0xdf0c) {
+    debug_call_isr_setup();
+  }
+  else {
+    if (original_svc_isr) {
+      asm volatile("mov pc,%0" : : "r" (original_svc_isr));
+    }
+  }
   asm volatile("pop {pc}");
 }
 
@@ -718,6 +728,7 @@ void debug_init() {
   _VectorsRam[5] = bus_fault_isr;
   _VectorsRam[6] = usage_fault_isr;
 
+  original_svc_isr = _VectorsRam[11];
   _VectorsRam[11] = svcall_isr;
 
   // chaing the software ISR handler
