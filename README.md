@@ -10,11 +10,10 @@ This module provides breakpoint support for the Teensy 3/4 platform from PJRC. T
 For background see: https://forum.pjrc.com/threads/26358-Software-Debugger-Stack
 
 Stand-alone usage
--------------------------------------------
+===========================================
 
 ```C
 #include "TeensyDebug.h"
-
 #pragma GCC optimize ("O0")
 
 int mark1 = 0;
@@ -44,6 +43,9 @@ void loop() {
 First, you must disable optimizations. If not, GCC will inline `test_function()` and you won't be able to set a breakpoint on it. For every breakpoint, `break_me` will be called. If you don't specify a callback, the default is just to print the registers and keep going. Note that the Teensy will not halt on the breakpoint. If you want to stop or delay, you must add that code yourself with a `delay()` or similar.
 
 GDB usage
+===========================================
+
+Background
 -------------------------------------------
 
 GDB Remote Serial Protocol stub provides a simple interface between GDB and a remote target via a serial interface, such as a socket, pipe, UART, USB, etc. It works like this:
@@ -56,9 +58,11 @@ Teensduino comes with a GDB executable for ARM processors.
 
 To start, I recommend you configure Teensy for Dual Serial support. You could compile with Dual serial ports using the menu `Tools / USB Type`. After uploading, you can figure out the serial device name using the menu `Tools / Port`. Alternatively you can just use a physical serial port.
 
+Sample code and usage
+-------------------------------------------
+
 ```C
 #include "TeensyDebug.h"
-
 #pragma GCC optimize ("O0")
 
 int mark1 = 0;
@@ -79,7 +83,25 @@ void loop() {
 }
 ```
 
-After compiling and uploading this program, Teensy will have two serial ports. One is the standard one you can view on the Serial Monitor. The other is the one you will connect to. You need to figure out what the device name is (See menu `Tools / Port`). Let's assume it's `/dev/cu.usbmodem61684901`.
+Use on Mac
+-------------------------------------------
+
+This beta distribution has a custom uploader that only works on Mac. Once installed, when you press the Upload button, Arduino will compile and upload the program and then start GDB in a new window (which will connect to the Teensy). This simplifies deployment and eliminates having to search for the ELF file.
+
+This tool requires Python. It is installed by running `run.command -i` located in the disribution direction. This script creates a new menu option in Arduino.
+
+This new menu provides three options: "Use Dual Serial", "Take over Serial", and "Off".
+
+* Use Dual Serial: If you compile Dual Serial support, the second USB Serial will be used to communicate with GDB. All optimizations will be turned off.
+
+* Take over Serial: GDB will use the USB Serial to communicate with the Teensy. The library will redefine Serial so that when used in your program it will send commands to GDB that will then print your data. All optimizations will be turned off.
+
+* Off: GDB is not used.
+
+Manual use
+-------------------------------------------
+
+After compiling and uploading the program above, Teensy will have two serial ports. One is the standard one you can view on the Serial Monitor. The other is the one you will connect to. You need to figure out what the device name is (See menu `Tools / Port`). Let's assume it's `/dev/cu.usbmodem61684901`.
 
 You also need to find the GDB executable that came with Teensyduino. On the Mac it is located in `/Applications/Teensyduino.app/Contents/Java/hardware//tools/arm/bin/arm-none-eabi-gdb`.
 
@@ -130,9 +152,9 @@ Program received signal SIGTRAP, Trace/breakpoint trap.
 ```
 
 Internal workings
----------------------------------------------
+===========================================
 
-This is how it works with Teensy.
+This is how it works with Teensy:
 
 1. By using a timer, the Teensy listens to GDB commands from a serial device.
 
@@ -149,11 +171,11 @@ This is how it works with Teensy.
 7. It will take over the SVC, software and all fault interrupts. The software interrupt will be "chained" so it will process it's own interrupts and any other interrupts will be sent to the original interrupt handler. SVC should be chained as well in the future.
 
 Future considerations
----------------------------------------------
+===========================================
 
 The serial connection can be anything that supports reading and writing ASCII in sequence. To start it's probably best to use a UART or USB Serial but in theory it could be USB Serial, CAN, network, Raw connection, etc.
 
-Right now, running GDB will have to be done manually. But in the future, GDB could be piped to Arduino's serial monitor. Both GDB's output and Teensy's serial output could be sent to the display. GDB can receive commands from the Send window. If, in addition to this, we use USB for the serial connection to GDB, then Teensy will have onboard live debugging available with no special setup or hardware required.
+Right now, GDB runs in a separate window. But in the future, GDB could be piped to Arduino's serial monitor. Both GDB's output and Teensy's serial output could be sent to the display. GDB can receive commands from the Send window. If, in addition to this, we use USB for the serial connection to GDB, then Teensy will have onboard live debugging available with no special setup or hardware required.
 
 ```
 [Arduino]      [           ser1] <-- [Teensy & GDB stub]
