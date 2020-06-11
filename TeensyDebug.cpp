@@ -555,15 +555,20 @@ __attribute__((noinline, naked))
 void svcall_isr() {
   asm volatile(SAVE_REGISTERS);
   asm volatile("push {lr}");
-  uint8_t *memory = (uint8_t*)stack->pc;
-  if (*memory == 0xdf0a || *memory == 0xdf0b || *memory == 0xdf0c) {
+  uint8_t *memory = (uint8_t*)(stack->pc - 2);
+#if 0
+  if ((*memory) & 0xFFF0 == 0xdf10|| debug_isBreakpoint(memory)) {
     debug_call_isr_setup();
   }
   else {
     if (original_svc_isr) {
+      asm volatile("pop {lr}");
       asm volatile("mov pc,%0" : : "r" (original_svc_isr));
     }
   }
+#else
+  debug_call_isr_setup();
+#endif
   asm volatile("pop {pc}");
 }
 

@@ -289,6 +289,24 @@ int process_G(const char *cmd, char *result) {
 }
 
 /**
+ * @brief Test is requested address is valid. GDB sometimes sends 
+ * invalid memory requests that will cause a fault. Should test more
+ * accurately, but this takes care of most problems.
+ * 
+ * @param addr Address to check
+ * @return int 1 = valid; 0 = invalid
+ */
+int isValidAddress(uint32_t addr) {
+  if (addr == 0) {
+    return 0;
+  }
+  if (addr > 0xF0000000) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
  * @brief Process 'm' to read memory
  * 
  * @param cmd Original command
@@ -307,7 +325,7 @@ int process_m(const char *cmd, char *result) {
 
   // Serial.print("read at ");Serial.println(addr, HEX);
 
-  if (addr == 0) {
+  if (isValidAddress(addr) == 0) {
     strcpy(result, "E01");
     return 0;
   }
@@ -563,7 +581,7 @@ void processGDBinput() {
 
   // User hit Ctrl-C or other break
   if (c == 0x03) {
-    // Serial.println("Ctrl-C");
+    Serial.println("Ctrl-C");
     cause_break = 1; // later?
     return;
   }
@@ -628,6 +646,23 @@ void processGDBinput() {
   sendResult(result);
 }
 
+size_t gdb_write(const uint8_t *msg, size_t len) {
+  if (send_message[0]) {
+    int lx = strlen(send_message);
+    char *p = send_message + lx;
+    mem2hex(p, (const char *)msg, len);
+  }
+  else {
+    send_message[0] = 'O';
+    mem2hex(send_message+1, (const char *)msg, len);
+  }
+  return len;
+}
+
+size_t gdb_print(const char *msg) {
+  return gdb_write((const uint8_t *)msg, strlen(msg));
+}
+
 /**
  * @brief Process GDB messages, including Break
  * 
@@ -636,7 +671,8 @@ void processGDB() {
 #if 0
   static unsigned int nexttick = millis() + 1000;
   if (millis() > nexttick) {
-    Serial.println("tick");
+    // Serial.println("tick");
+    gdb_print("ping");
     nexttick += 1000;
   }
 #endif
@@ -647,6 +683,7 @@ void processGDB() {
     send_message[0] = 0;
   }
   if (cause_break) {
+    Serial.println("BREAK!!");
     cause_break = 0;
     asm volatile("svc 0x12");
   }
@@ -657,17 +694,15 @@ void processGDB() {
 IntervalTimer gdb_timer;
 void gdb_init(Stream *device) {
   if (device == NULL) {
-    debug_active = 0;
+    device = &Serial;
   }
-  else {
-    // Serial.println("GDB stub active");
-    send_message[0] = 0;
-    debug_active = 1;
-    devInit(device);
-    gdb_timer.begin(processGDB, 5000);
-    debug.setCallback(process_onbreak);
-    // We could halt at startup, but maybe it's best to let user 
-    // explicitly do so with a breakpoint(n)
-    //    debug.setBreakpoint(setup_main, 1);
-  }
+  // Serial.println("GDB stub active");
+  send_message[0] = 0;
+  debug_active = 1;
+  devInit(device);
+  gdb_timer.begin(processGDB, 5000);
+  debug.setCallback(process_onbreak);
+  // We could halt at startup, but maybe it's best to let user 
+  // explicitly do so with a breakpoint(n)
+  //    debug.setBreakpoint(setup_main, 1);
 }

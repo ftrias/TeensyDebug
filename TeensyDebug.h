@@ -9,10 +9,16 @@
 
 // If this is used internally, not need to remap
 #ifndef GDB_DEBUG_INTERNAL
+
 #ifdef HAS_FP_MAP
 // rename the original setup() because we need to hijack it
 #define setup setup_main
 #endif
+
+#ifdef GDB_TAKE_OVER_SERIAL
+#define Serial debug
+#endif
+
 #endif
 
 int hcdebug_isEnabled(int n);
@@ -23,7 +29,9 @@ int debug_clearBreakpoint(void *p, int n);
 void debug_setCallback(void (*c)());
 uint32_t debug_getRegister(const char *reg);
 
-class Debug {
+size_t gdb_write(const uint8_t *msg, size_t len);
+
+class Debug : public Print {
 public:
   int begin(Stream *device = NULL);
   int begin(Stream &device) { return begin(&device); }
@@ -31,7 +39,17 @@ public:
   int clearBreakpoint(void *p, int n=1);
   void setCallback(void (*c)());
   uint32_t getRegister(const char *reg);
+
+  virtual size_t write(uint8_t b) { 
+    return write(&b, 1);
+  };
+	virtual size_t write(const uint8_t *buffer, size_t size) {
+    return gdb_write(buffer, size);
+  }
+	virtual int availableForWrite(void)		{ return 0; }
+	virtual void flush() { }	
 };
+
 extern Debug debug;
 
 #define breakpoint(n) {if (hcdebug_isEnabled(n)) {asm volatile("svc #0x11");}}
