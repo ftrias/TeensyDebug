@@ -209,6 +209,7 @@ extern int debug_id;
 // from debug indicting we are "stepping" instructions
 extern int debugstep;
 
+// for messages that are sent seperately (like 'O', print)
 char send_message[256];
 
 /**
@@ -392,7 +393,7 @@ int process_s(const char *cmd, char *result) {
   if (*cmd) {
     // int addr;
     // hexToInt(&cmd, &addr);
-    // we don't suppor starting in a different address
+    // we don't support starting in a different address
     strcpy(result, "E01"); // SNN
     return 0;
   }
@@ -507,12 +508,26 @@ int process_q(const char *cmd, char *result) {
   return 0;
 }
 
+/**
+ * @brief Functions are not supported, but would be very useful in the future
+ * 
+ * @param cmd Function specification
+ * @param result 
+ * @return int 
+ */
 int process_F(const char *cmd, char *result) {
-  Serial.println(cmd);
+  // Serial.println(cmd);
   strcpy(result, "");    
   return 0;
 }
 
+/**
+ * @brief Process 'R' restart
+ * 
+ * @param cmd 
+ * @param result 
+ * @return int 
+ */
 int process_R(const char *cmd, char *result) {
   // _reboot_Teensyduino_();
   // _restart_Teensyduino_();
@@ -546,6 +561,7 @@ int processCommand(const char *cmd, char *result) {
     case 'Z': return process_Z(cmd, result);
     case 'q': return process_q(cmd, result);
   }
+  // if it's not listed above, it's not supported
   result[0] = 0;
   return 0;
 }
@@ -646,7 +662,14 @@ void processGDBinput() {
   sendResult(result);
 }
 
-size_t gdb_write(const uint8_t *msg, size_t len) {
+/**
+ * @brief Output to the GDB console using 'O' command
+ * 
+ * @param msg Message to display
+ * @param len Number of characters
+ * @return size_t Number of characters sent
+ */
+size_t gdb_out_write(const uint8_t *msg, size_t len) {
   if (send_message[0]) {
     int lx = strlen(send_message);
     char *p = send_message + lx;
@@ -659,8 +682,14 @@ size_t gdb_write(const uint8_t *msg, size_t len) {
   return len;
 }
 
-size_t gdb_print(const char *msg) {
-  return gdb_write((const uint8_t *)msg, strlen(msg));
+/**
+ * @brief Output string to GDB console using 'O'
+ * 
+ * @param msg String to print
+ * @return size_t Number of characters sent
+ */
+size_t gdb_out_print(const char *msg) {
+  return gdb_out_write((const uint8_t *)msg, strlen(msg));
 }
 
 /**
@@ -691,7 +720,14 @@ void processGDB() {
 
 // void setup_main();
 
+// Check for GDB commands periodically
 IntervalTimer gdb_timer;
+
+/**
+ * @brief Initialize debug system
+ * 
+ * @param device Optional device that inherits from Stream; default is Serial
+ */
 void gdb_init(Stream *device) {
   if (device == NULL) {
     device = &Serial;

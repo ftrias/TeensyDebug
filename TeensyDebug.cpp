@@ -1,5 +1,11 @@
 /**
- * @brief TeensyDebug gdb stub.
+ * @file TeensyDebug.cpp
+ * @author Fernando Trias
+ * @brief Implement GDB stub using TeensyDebug interface
+ * @version 0.1
+ * @date 2020-06-09
+ * 
+ * @copyright Copyright (c) 2020 Fernando Trias
  * 
  */
 
@@ -360,6 +366,7 @@ const char *hard_fault_debug_text[] = {
 };
 uint32_t debug_id = 0;
 
+// Copy of the registers at breakpoint
 struct save_registers_struct {
   uint32_t r0;
   uint32_t r1;
@@ -392,6 +399,8 @@ struct stack_isr {
   uint32_t pc;
   uint32_t xPSR;
 };
+// Live pointer to stack of ISR. We use this to modify the
+// return address and other things
 struct stack_isr *stack;
 
 void print_registers() {
@@ -413,12 +422,21 @@ void print_registers() {
   Serial.print("sp=0x");Serial.println(save_registers.sp,HEX);
 }
 
+/**
+ * @brief Default debug callback
+ * 
+ */
 void debug_action() {
   Serial.println("****DEBUG");
   print_registers();
   Serial.println("****");
 }
 
+/**
+ * @brief Called by software interrupt to perform breakpoint manipulation
+ * during execution and to call the callback.
+ * 
+ */
 void debug_monitor() {
   uint32_t breakaddr = save_registers.pc - 2;
 
@@ -488,6 +506,7 @@ void debug_monitor() {
   }
 }
 
+// Save registers within an interrupt. Changes R0 register
 #define SAVE_REGISTERS \
     "ldr r0, =stack \n" \
     "str sp, [r0] \n" \
@@ -526,6 +545,11 @@ void debug_monitor() {
 void (*original_software_isr)() = NULL;
 void (*original_svc_isr)() = NULL;
 
+/**
+ * @brief Called by software interrupt. Perform chaining or
+ * call handler.
+ * 
+ */
 __attribute__((noinline, naked))
 void debug_call_isr() {
   // Are we in debug mode? If not, just jump to original ISR
@@ -544,6 +568,10 @@ void debug_call_isr() {
   asm volatile("pop {pc}");
 }
 
+/**
+ * @brief Called by SVC ISR to trigger software interrupt
+ * 
+ */
 void debug_call_isr_setup() {
   debugcount++;
   debugenabled = 1;
@@ -551,6 +579,10 @@ void debug_call_isr_setup() {
   NVIC_SET_PENDING(IRQ_SOFTWARE); 
 }
 
+/**
+ * @brief SVC handler. Save registers and handle breakpoint.
+ * 
+ */
 __attribute__((noinline, naked))
 void svcall_isr() {
   asm volatile(SAVE_REGISTERS);
@@ -572,6 +604,10 @@ void svcall_isr() {
   asm volatile("pop {pc}");
 }
 
+/**
+ * @brief Table used by FP_MAP to map memory to breakpoints
+ * 
+ */
 __attribute__((naked))
 void svc_call_table() {
   asm volatile(
@@ -594,6 +630,12 @@ void svc_call_table() {
 
 #pragma GCC pop_options
 
+/**
+ * @brief Return register value for a text representation.
+ * 
+ * @param reg Text representation 'r0', 'r1', etc.
+ * @return uint32_t Value of register
+ */
 uint32_t debug_getRegister(const char *reg) {
   if (reg[0] == 'r') {
     if (reg[2] == 0) { // r0-r9
@@ -644,6 +686,12 @@ void flash_blink(int n) {
 }
 
 int debug_crash = 0;
+
+/**
+ * @brief Default handler for faults
+ * 
+ * @param n 
+ */
 void hard_fault_debug(int n) {
   // if (debug_crash) flash_blink(n);
   Serial.print("****FAULT ");
@@ -664,18 +712,17 @@ void hard_fault_debug(int n) {
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 
-#define xfault_isr_stack(fault) \
-  asm volatile(SAVE_REGISTERS); \
-  debug_id = fault; \
-  NVIC_SET_PENDING(IRQ_SOFTWARE); \
-  asm volatile("bx lr")
-
+// Save registers during fault and call default handler
 #define fault_isr_stack(fault) \
   asm volatile("ldr r0, =stack \n str sp, [r0]"); \
   asm volatile("push {lr}"); \
   hard_fault_debug(fault); \
   asm volatile("pop {pc}")
 
+/**
+ * @brief Trap faults
+ * 
+ */
 __attribute__((noinline, naked)) void nmi_isr(void) { fault_isr_stack(1); }
 __attribute__((noinline, naked)) void hard_fault_isr(void) { fault_isr_stack(2); }
 __attribute__((noinline, naked)) void memmanage_fault_isr(void) { fault_isr_stack(3); } 
@@ -703,6 +750,10 @@ void dumpmem(void *mem, int sz) {
 // table must be in ram above 0x20000000 and this ram is in the stack area.
 uint32_t save_stack;
 
+/**
+ * @brief Initialize debugging system.
+ * 
+ */
 void debug_init() {
 
 #ifdef HAS_FP_MAP
@@ -770,6 +821,12 @@ void __attribute__((naked)) setup() {
 
 #endif
 
+/**
+ * @brief Initialize both debugger and GDB
+ * 
+ * @param device Device to use; inherits from Stream; if NULL use Serial
+ * @return int 
+ */
 int debug_begin(Stream *device) {
   debug_init();                                       // perform debug initialization
   gdb_init(device);

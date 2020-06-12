@@ -1,3 +1,14 @@
+/**
+ * @file TeensyDebug.cpp
+ * @author Fernando Trias
+ * @brief Implement GDB stub using TeensyDebug interface
+ * @version 0.1
+ * @date 2020-06-09
+ * 
+ * @copyright Copyright (c) 2020 Fernando Trias
+ * 
+ */
+
 #ifndef TEENSY_DEBUG_H
 #define TEENSY_DEBUG_H
 
@@ -29,7 +40,7 @@ int debug_clearBreakpoint(void *p, int n);
 void debug_setCallback(void (*c)());
 uint32_t debug_getRegister(const char *reg);
 
-size_t gdb_write(const uint8_t *msg, size_t len);
+size_t gdb_out_write(const uint8_t *msg, size_t len);
 
 class Debug : public Print {
 public:
@@ -44,9 +55,9 @@ public:
     return write(&b, 1);
   };
 	virtual size_t write(const uint8_t *buffer, size_t size) {
-    return gdb_write(buffer, size);
+    return gdb_out_write(buffer, size);
   }
-	virtual int availableForWrite(void)		{ return 0; }
+	virtual int availableForWrite(void)		{ return 128; }
 	virtual void flush() { }	
 };
 

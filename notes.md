@@ -1,3 +1,27 @@
+
+20200612
+
+I wrote a library that allows using GDB to perform source-level debugging on the Teensy. It uses GDB's Remote Serial Protocol to communicate with Teensy over a Serial connection (physical or USB). This is a beta release for comments and testing. It works on Teensy 4 and 3.2. Highlights:
+
+* Set/remove breakpoints on most places in your code
+* Examining and changing memory and registers
+* View call stack
+* Halt code at any time
+
+In the past, doing this has been very challenging because the debugging features of the Teensy are permanently disabled (see https://forum.pjrc.com/threads/26358-Software-Debugger-Stack and https://forum.pjrc.com/threads/61262-Sleeping-to-disable-C_DEBUGEN?p=242721#post242721). But I'm using a trick that doesn't involve any of the debugging features.
+
+To emulate breakpoints the library first takes over the SVC interrupt. The Teensy 4 places most code in RAM so to activate a breakpoint it just replaces the original instructions with SVC calls. On Teensy 3.2, setting breakpoints uses the Cortex-M4's features to "patch" parts of flash by pointing it to RAM. 
+
+The library is enabled by including the header. On Macs, there is a python script that adds a menu option and opens GDB automatically after uploading your program. On other platforms, you run GDB manually and use `target remote` to connect to the serial port used by the GDB interface.
+
+```C
+#include "TeensyDebug.h"
+```
+
+To read more and try it out visit: http://github.com/ftrias/TeensyDebug
+
+20200609
+
 GDB stubs on Teensy
 ===================
 

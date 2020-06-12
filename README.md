@@ -7,6 +7,8 @@ This module provides breakpoint support for the Teensy 3/4 platform from PJRC. T
 
 2. GDB Remote Serial Protocol stub so that GDB can connect to the Teensy and perform live debugging.
 
+3. Catch hard crashes and display diagnosics.
+
 For background see: https://forum.pjrc.com/threads/26358-Software-Debugger-Stack
 
 Stand-alone usage
@@ -19,7 +21,8 @@ Stand-alone usage
 int mark1 = 0;
 
 void break_me() {
-  Serial.print("BREAK at 0x"); Serial.println(debug.getRegister("pc"), HEX);
+  Serial.print("BREAK at 0x"); 
+  Serial.println(debug.getRegister("pc"), HEX);
 }
 
 void test_function() {
@@ -27,7 +30,6 @@ void test_function() {
 }
 
 void setup() {
-  delay(3000);
   debug.begin();
   debug.setCallback(break_me);
   debug.setBreakpoint(test_function);
@@ -35,7 +37,7 @@ void setup() {
 
 void loop() {
   test_function();
-  Serial.print("mark=");Serial.println(mark);
+  Serial.println(mark);
   delay(1000);
 }
 ```
@@ -45,18 +47,15 @@ First, you must disable optimizations. If not, GCC will inline `test_function()`
 GDB usage
 ===========================================
 
-Background
--------------------------------------------
-
-GDB Remote Serial Protocol stub provides a simple interface between GDB and a remote target via a serial interface, such as a socket, pipe, UART, USB, etc. It works like this:
+GDB Remote Serial Protocol stubs provide a simple interface between GDB and a remote target via a serial interface, such as a socket, pipe, UART, USB, etc. It works like this:
 
 ```
 [PC running GDB] <--(serial)--> [Teensy GDB stub]
 ```
 
-Teensduino comes with a GDB executable for ARM processors.
+Teensduino comes with a GDB executable for ARM processors, so there is no need to install that.
 
-To start, I recommend you configure Teensy for Dual Serial support. You could compile with Dual serial ports using the menu `Tools / USB Type`. After uploading, you can figure out the serial device name using the menu `Tools / Port`. Alternatively you can just use a physical serial port.
+To start, I recommend you configure Teensy for Dual Serial support. One serial will be used as before. The second serial will be used by GDB. You can compile with Dual serial ports using the menu `Tools / USB Type`. Alternatively you can just use a physical serial port by passing it in, as `debug.begin(Serial1)`.
 
 Sample code and usage
 -------------------------------------------
@@ -72,13 +71,13 @@ void test_function() {
 }
 
 void setup() {
-  delay(3000);
-  debug.begin(SerialUSB1);
+  debug.begin(); // init debugger
+  halt();        // stop on startup
 }
 
 void loop() {
   test_function();
-  Serial.print("mark=");Serial.println(mark);
+  Serial.println(mark);
   delay(1000);
 }
 ```
@@ -86,7 +85,7 @@ void loop() {
 Use on Mac
 -------------------------------------------
 
-This beta distribution has a custom uploader that only works on Mac. Once installed, when you press the Upload button, Arduino will compile and upload the program and then start GDB in a new window (which will connect to the Teensy). This simplifies deployment and eliminates having to search for the ELF file.
+This beta distribution has a custom uploader that only works on Macs. Once installed, when you press the Upload button, Arduino will compile and upload the program and then start GDB in a new window (which will connect to the Teensy). This simplifies deployment and eliminates having to search for the ELF file.
 
 This tool requires Python. It is installed by running `run.command -i` located in the disribution direction. This script creates a new menu option in Arduino.
 
@@ -94,7 +93,7 @@ This new menu provides three options: "Use Dual Serial", "Take over Serial", and
 
 * Use Dual Serial: If you compile Dual Serial support, the second USB Serial will be used to communicate with GDB. All optimizations will be turned off.
 
-* Take over Serial: GDB will use the USB Serial to communicate with the Teensy. The library will redefine Serial so that when used in your program it will send commands to GDB that will then print your data. All optimizations will be turned off.
+* Take over Serial: GDB will use the USB Serial to communicate with the Teensy. The library will redefine Serial so that GDB will print your data. All optimizations will be turned off.
 
 * Off: GDB is not used.
 
@@ -105,7 +104,7 @@ After compiling and uploading the program above, Teensy will have two serial por
 
 You also need to find the GDB executable that came with Teensyduino. On the Mac it is located in `/Applications/Teensyduino.app/Contents/Java/hardware//tools/arm/bin/arm-none-eabi-gdb`.
 
-Next, find the ELF file created. Arduino puts it in a temporary directory, but forunately, it is the same directory for the duration of Arduino. If you look at the output, you should see multiple mentions of a file ending with ".elf". For example: `/var/folders/j1/8hkyfp_96zl_lgp19b19pbj80000gp/T/arduino_build_133762/breakpoint_test.ino.elf`.
+Next, find the ELF file created. Arduino puts it in a temporary directory, but forunately, it is the same directory for the duration of Arduino. If you look at the end of the compile output, you should see multiple mentions of a file ending with ".elf". For example: `/var/folders/j1/8hkyfp_96zl_lgp19b19pbj80000gp/T/arduino_build_133762/breakpoint_test.ino.elf`.
 
 Running GDB yields:
 
@@ -154,7 +153,7 @@ Program received signal SIGTRAP, Trace/breakpoint trap.
 Internal workings
 ===========================================
 
-This is how it works with Teensy:
+This is how it works:
 
 1. By using a timer, the Teensy listens to GDB commands from a serial device.
 
@@ -168,7 +167,7 @@ This is how it works with Teensy:
 
 6. On the Teensy 3.2, we could as well use the Flash Patch Block to set and remove SVC calls using patching. Thus, you can dynamically set breakpoints in flash. Teensy 4 doesn't support this, but since it places code in RAM, that's probably not a big deal.
 
-7. It will take over the SVC, software and all fault interrupts. The software interrupt will be "chained" so it will process it's own interrupts and any other interrupts will be sent to the original interrupt handler. SVC should be chained as well in the future.
+7. It will take over the SVC, software and all fault interrupts. The software interrupt will be "chained" so it will process it's own interrupts and any other interrupts will be sent to the original interrupt handler. The SVC handler will trigger first. It will save the registers and then trigger the software interrupt. It does this because the software interrupt has a lower priority and thus Teensy features like USB will continue to work during a software interrupt, but not during an SVC interrupt which has a higher priority. The software interrupt is chained, meaning that if it is called outside of SVC, it will redirect to the previous software interrupt. This is helpful because the Aduio library uses the software interrupt.
 
 Future considerations
 ===========================================
