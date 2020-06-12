@@ -68,13 +68,13 @@ def installGDB():
       f.write("""
 teensy%s.menu.gdb.serial=Take over Serial
 teensy%s.menu.gdb.serial.build.gdb=2
-teensy%s.menu.gdb.serial.build.flags.optimize=-O0 -g -DGDB_TAKE_OVER_SERIAL
+teensy%s.menu.gdb.serial.build.flags.optimize=-Og -g -DGDB_TAKE_OVER_SERIAL
 teensy%s.menu.gdb.dual=Use dual Serial
 teensy%s.menu.gdb.dual.build.gdb=1
-teensy%s.menu.gdb.dual.build.flags.optimize=-O0 -g -DGDB_DUAL_SERIAL
+teensy%s.menu.gdb.dual.build.flags.optimize=-Og -g -DGDB_DUAL_SERIAL
 teensy%s.menu.gdb.manual=Manual device selection
 teensy%s.menu.gdb.manual.build.gdb=3
-teensy%s.menu.gdb.manual.build.flags.optimize=-O0 -g -DGDB_MANUAL_SELECTION
+teensy%s.menu.gdb.manual.build.flags.optimize=-Og -g -DGDB_MANUAL_SELECTION
 teensy%s.menu.gdb.off=Off
 teensy%s.menu.gdb.off.build.gdb=0
 teensy%s.upload.tool=gdbtool
