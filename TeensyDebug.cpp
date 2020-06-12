@@ -62,7 +62,7 @@ https://sourceware.org/gdb/current/onlinedocs/gdb/Remote-Protocol.html#Remote-Pr
 
 //
 // Need to know where RAM starts/stops so we know where
-// dynamic breakpoints are possible
+// software breakpoints are possible
 //
 
 #ifdef __MK20DX256__
@@ -138,7 +138,8 @@ int swdebug_isBreakpoint(void *p) {
  * 
  */
 
-void *hw_breakpoints[32];
+const int hw_breakpoint_count = 6;
+void *hw_breakpoints[hw_breakpoint_count];
 uint16_t *hw_remap_table;
 
 int hwdebug_clearBreakpoint(void *p, int n) {
@@ -248,7 +249,7 @@ void hcdebug_tripBreakpoint(int n) {
 }
 
 /**
- * @brief Wrapper functions that call corresponding breakpoint functions.
+ * Wrapper functions that call corresponding breakpoint functions.
  * 
  */
 
@@ -346,14 +347,27 @@ int debug_isBreakpoint(void *p) {
 
 /*
  * Breakpint handlers
+ * 
+ * During a breakpoint:
+ * 1. The interrupt is initiated and registers are saved.
+ * 2. The breakpoint instruction is replaced with the original code.
+ * 3. The handler callback is called.
+ * 4. A new temporary breakpoint is put in the next instruction.
+ * 5. Execution continues and breaks at next instruction.
+ * 6. The temporary breakpoint is replaced with origianl code.
+ * 7. The original breakpoint is restored.
+ * 8. Execution continues.
  */
 
-
+// breakpoint handler pointer
 void (*callback)() = NULL;
 
-// If debugactive=0, this means the actual breakpoint. If debugactive=1, this is the followon breakpoint.
+// If debugactive=0, this means the actual breakpoint. 
+// If debugactive=1, this is the follow on breakpoint.
 int debugactive = 0;
-int debugreset = 0;
+
+// Saved address to restore original breakpoint
+uint32_T debugreset = 0;
 int debugcount = 0;
 int debugenabled = 0;
 int debugstep = 0;
