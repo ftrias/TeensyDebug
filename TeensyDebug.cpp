@@ -392,6 +392,9 @@ const char *hard_fault_debug_text[] = {
 // 2 = hard fault, etc.
 uint32_t debug_id = 0;
 
+// Debug tracing - not used by code
+int debug_trace = 0;
+
 // Copy of the registers at breakpoint
 struct save_registers_struct {
   uint32_t r0;
@@ -749,11 +752,11 @@ void hard_fault_debug(int n) {
  * @brief Trap faults
  * 
  */
-__attribute__((noinline, naked)) void nmi_isr(void) { fault_isr_stack(1); }
-__attribute__((noinline, naked)) void hard_fault_isr(void) { fault_isr_stack(2); }
-__attribute__((noinline, naked)) void memmanage_fault_isr(void) { fault_isr_stack(3); } 
-__attribute__((noinline, naked)) void bus_fault_isr(void)  { fault_isr_stack(4); }
-__attribute__((noinline, naked)) void usage_fault_isr(void)  { fault_isr_stack(5); }
+__attribute__((noinline, naked)) void call_nmi_isr(void) { fault_isr_stack(1); }
+__attribute__((noinline, naked)) void call_hard_fault_isr(void) { fault_isr_stack(2); }
+__attribute__((noinline, naked)) void call_memmanage_fault_isr(void) { fault_isr_stack(3); } 
+__attribute__((noinline, naked)) void call_bus_fault_isr(void)  { fault_isr_stack(4); }
+__attribute__((noinline, naked)) void call_usage_fault_isr(void)  { fault_isr_stack(5); }
 
 #pragma GCC pop_options
 
@@ -781,7 +784,7 @@ uint32_t save_stack;
  * 
  */
 void debug_init() {
-
+  
 #ifdef HAS_FP_MAP
   // find next aligned block in the stack
   uint32_t xtable = (save_stack + 0x100) & 0xFFFFFFC0;
@@ -804,11 +807,13 @@ void debug_init() {
 //  dumpmem(xtable, 32);
 #endif
 
-  _VectorsRam[2] = nmi_isr;
-  _VectorsRam[3] = hard_fault_isr;
-  _VectorsRam[4] = memmanage_fault_isr;
-  _VectorsRam[5] = bus_fault_isr;
-  _VectorsRam[6] = usage_fault_isr;
+  debug_trace = 1;
+
+  _VectorsRam[2] = call_nmi_isr;
+  _VectorsRam[3] = call_hard_fault_isr;
+  _VectorsRam[4] = call_memmanage_fault_isr;
+  _VectorsRam[5] = call_bus_fault_isr;
+  _VectorsRam[6] = call_usage_fault_isr;
 
   original_svc_isr = _VectorsRam[11];
   _VectorsRam[11] = svcall_isr;
@@ -824,40 +829,6 @@ void debug_init() {
 
 void gdb_init(Stream *device);
 
-#ifdef REMAP_SETUP
-
-// We will rename the original setup() to this by using a #define
-void setup_main();
-
-void debug_setup_auto() {
-#ifdef GDB_DUAL_SERIAL
-  gdb_init(&SerialUSB1);
-#endif
-#ifdef GDB_TAKE_OVER_SERIAL
-  gdb_init(&Serial);
-#endif
-}
-
-/*
- * The setup function must allocate space on the stack for the remap table; this space must
- * reside above 0x20000000 and this area is reserved in the stack. This is OK because the function
- * calling setup() is main(), which never returns. So taking a chunk of stack won't affect it. If
- * main() does ever want to return, it will have to dealloate this memory.
- */
-void __attribute__((naked)) setup() {
-
-#ifdef HAS_FP_MAP
-  asm volatile("sub sp, #512");                       // allocate 512 bytes so we have room to align data
-  asm volatile("mov %0, sp" : "=r" (save_stack) );    // save the location
-#endif
-  asm volatile("push {lr}");                          // save the return address
-  debug_setup_auto();
-  setup_main();                                       // call the "real" setup function
-  asm volatile("pop {pc}");                           // get original return address
-}
-
-#endif
-
 /**
  * @brief Initialize both debugger and GDB
  * 
@@ -869,6 +840,46 @@ int debug_begin(Stream *device) {
   gdb_init(device);
   return 1;
 }
+
+#ifdef REMAP_SETUP
+
+// We will rename the original setup() to this by using a #define
+void setup_main();
+
+void debug_setup_auto() {
+  // delay(3000);
+  // Serial.println("Auto setup debug serial");
+  // delay(3000);
+  // return;
+#if defined(GDB_DUAL_SERIAL)
+  debug_begin(&SerialUSB1);
+#elif defined(GDB_TAKE_OVER_SERIAL)
+  debug_begin(&Serial);
+#else
+  debug_begin(NULL);
+#endif
+}
+
+/*
+ * The setup function must allocate space on the stack for the remap table; this space must
+ * reside above 0x20000000 and this area is reserved in the stack. This is OK because the function
+ * calling setup() is main(), which never returns. So taking a chunk of stack won't affect it. If
+ * main() does ever want to return, it will have to dealloate this memory.
+ */
+void __attribute__((naked)) setup() {
+#ifdef HAS_FP_MAP
+  asm volatile("sub sp, #512");                       // allocate 512 bytes so we have room to align data
+  asm volatile("mov %0, sp" : "=r" (save_stack) );    // save the location
+#endif
+
+  asm volatile("push {r0-r4,lr}");                          // save the return address
+  debug_setup_auto();
+  setup_main();                                       // call the "real" setup function
+  asm volatile("pop {r0-r4,pc}");                           // get original return address
+
+}
+
+#endif
 
 /**
  * Class

@@ -138,6 +138,22 @@ char *mem2hex(char *buff, const void *addr, int sz) {
   return buff;
 }
 
+/**
+ * @brief Convert hex string to actual string
+ * 
+ * @param buff Store string here
+ * @param hexstr Hexadeciamal representation
+ * @return char* Pointer to \0 at end of buff
+ */
+char *hex2str(char *buff, const char *hexstr) {
+  while (*hexstr) {
+    int c_high = hex(*hexstr++);
+    int c_low = hex(*hexstr++);
+    *buff++ = (c_high << 4) + c_low;
+  }
+  *buff = 0;
+  return buff;
+}
 
 /**
  * While we find nice hex chars, build an int.
@@ -210,6 +226,36 @@ extern int debugstep;
 
 // for messages that are sent seperately (like 'O', print)
 char send_message[256];
+
+/**
+ * @brief Output to the GDB console using 'O' command
+ * 
+ * @param msg Message to display
+ * @param len Number of characters
+ * @return size_t Number of characters sent
+ */
+size_t gdb_out_write(const uint8_t *msg, size_t len) {
+  if (send_message[0]) {
+    int lx = strlen(send_message);
+    char *p = send_message + lx;
+    mem2hex(p, (const char *)msg, len);
+  }
+  else {
+    send_message[0] = 'O';
+    mem2hex(send_message+1, (const char *)msg, len);
+  }
+  return len;
+}
+
+/**
+ * @brief Output string to GDB console using 'O'
+ * 
+ * @param msg String to print
+ * @return size_t Number of characters sent
+ */
+size_t gdb_out_print(const char *msg) {
+  return gdb_out_write((const uint8_t *)msg, strlen(msg));
+}
 
 /**
  * @brief Routing for processing breakpoints
@@ -483,6 +529,71 @@ int process_Z(const char *cmd, char *result) {
   return 0;
 }
 
+char *getNextWord(char **text) {
+  char *orig = *text;
+  char *p = orig;
+  while(*p) {
+    if (*p == ' ' || *p == '(' || *p == ')' || *p == ',') {
+      *p++ = 0;
+      while(*p == ' ') p++;
+      *text = p;
+      return orig;
+    }
+    p++;
+  }
+  *text = 0;
+  return orig;
+}
+
+int process_monitor(char *cmd, char *result) {
+  char *place = cmd;
+  char *word;
+  word = getNextWord(&place);
+  // Serial.print("command1 ");Serial.println(word);
+  if (stricmp(word, "digitalWrite") == 0) {
+    char *pin = getNextWord(&place);
+    char *state = getNextWord(&place);
+    int ipin = atoi(pin);
+    int istate = atoi(state);
+    pinMode(ipin, OUTPUT);
+    digitalWrite(ipin, istate);
+    strcpy(result, "OK"); 
+    return 0;   
+  }
+  else if (stricmp(word, "digitalRead") == 0) {
+    char *pin = getNextWord(&place);
+    int ipin = atoi(pin);
+    pinMode(ipin, INPUT);
+    int v = digitalRead(ipin);
+    char x[256];
+    sprintf(x, "%d\n", v);
+    mem2hex(result, (const char *)x, strlen(x));
+    return 0;   
+  }
+  else if (stricmp(word, "analogWrite") == 0) {
+    char *pin = getNextWord(&place);
+    char *state = getNextWord(&place);
+    int ipin = atoi(pin);
+    int istate = atoi(state);
+    pinMode(ipin, OUTPUT);
+    analogWrite(ipin, istate);
+    strcpy(result, "OK"); 
+    return 0;   
+  }
+  else if (stricmp(word, "analogRead") == 0) {
+    char *pin = getNextWord(&place);
+    int ipin = atoi(pin);
+    pinMode(ipin, INPUT);
+    int v = analogRead(ipin);
+    char x[256];
+    sprintf(x, "%d\n", v);
+    mem2hex(result, (const char *)x, strlen(x));
+    return 0;   
+  }
+  strcpy(result, "");    
+  return 0;
+}
+
 /**
  * @brief Process 'q' query command. For now report back only PacketSize.
  * 
@@ -495,13 +606,10 @@ int process_q(const char *cmd, char *result) {
     strcpy(result, "PacketSize=1024");
     return 0;
   }
-  else if (strncmp(cmd, "qPing", 7) == 0) {
-    const char *msg = "Test message";
-    send_message[0] = 'O';
-    mem2hex(send_message+1, msg, strlen(msg));
-    // sprintf(send_message, "Fwrite,2,%x,%x", (int)&msg, strlen(msg));
-    strcpy(result, "");    
-    return 0;
+  else if (strncmp(cmd, "qRcmd", 5) == 0) {
+    char x[256];
+    hex2str(x, cmd+6);
+    return process_monitor(x, result);
   }
   strcpy(result, "");    
   return 0;
@@ -596,8 +704,8 @@ void processGDBinput() {
 
   // User hit Ctrl-C or other break
   if (c == 0x03) {
-    Serial.println("Ctrl-C");
-    cause_break = 1; // later?
+    // Serial.println("Ctrl-C");
+    cause_break = 1; // cause break later so we don't break internals
     return;
   }
 
@@ -662,36 +770,6 @@ void processGDBinput() {
 }
 
 /**
- * @brief Output to the GDB console using 'O' command
- * 
- * @param msg Message to display
- * @param len Number of characters
- * @return size_t Number of characters sent
- */
-size_t gdb_out_write(const uint8_t *msg, size_t len) {
-  if (send_message[0]) {
-    int lx = strlen(send_message);
-    char *p = send_message + lx;
-    mem2hex(p, (const char *)msg, len);
-  }
-  else {
-    send_message[0] = 'O';
-    mem2hex(send_message+1, (const char *)msg, len);
-  }
-  return len;
-}
-
-/**
- * @brief Output string to GDB console using 'O'
- * 
- * @param msg String to print
- * @return size_t Number of characters sent
- */
-size_t gdb_out_print(const char *msg) {
-  return gdb_out_write((const uint8_t *)msg, strlen(msg));
-}
-
-/**
  * @brief Process GDB messages, including Break
  * 
  */
@@ -700,18 +778,19 @@ void processGDB() {
   static unsigned int nexttick = millis() + 1000;
   if (millis() > nexttick) {
     // Serial.println("tick");
-    gdb_print("ping");
+    gdb_out_print("ping");
     nexttick += 1000;
   }
 #endif
   if (! debug_active) return;
   processGDBinput();
   if (send_message[0]) {
+    // Serial.print("send ");Serial.println(send_message);
     sendResult(send_message);
     send_message[0] = 0;
   }
   if (cause_break) {
-    Serial.println("BREAK!!");
+    // Serial.println("BREAK!!");
     cause_break = 0;
     asm volatile("svc 0x12");
   }
@@ -728,12 +807,12 @@ IntervalTimer gdb_timer;
  * @param device Optional device that inherits from Stream; default is Serial
  */
 void gdb_init(Stream *device) {
-  // Serial.println("GDB stub active");
   send_message[0] = 0;
-  debug_active = 1;
   devInit(device);
   gdb_timer.begin(processGDB, 5000);
   debug.setCallback(process_onbreak);
+  debug_active = 1;
+
   // We could halt at startup, but maybe it's best to let user 
   // explicitly do so with a breakpoint(n)
   //    debug.setBreakpoint(setup_main, 1);
