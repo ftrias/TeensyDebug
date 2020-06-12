@@ -1,7 +1,7 @@
 Live debugging on Teensy & GDB support
 ===========================================
 
-This module provides breakpoint support for the Teensy 3/4 platform from PJRC. The module provides two features:
+This module provides breakpoint support for the Teensy 3/4 platform from PJRC without need for an external debug interface. The module provides two features:
 
 1. Ability to set/clear breakpoints and query registers from within Teensy code.
 
@@ -14,12 +14,15 @@ For background see: https://forum.pjrc.com/threads/26358-Software-Debugger-Stack
 Stand-alone usage
 ===========================================
 
+The debugger can work stand-alone by debugging itself. Or in conjuction with GDB, the GNU Debugger.
+
 ```C
 #include "TeensyDebug.h"
-#pragma GCC optimize ("O0")
+#pragma GCC optimize ("O0") // disable optimizations
 
 int mark1 = 0;
 
+// called for every breakpoint
 void break_me() {
   Serial.print("BREAK at 0x"); 
   Serial.println(debug.getRegister("pc"), HEX);
@@ -53,9 +56,9 @@ GDB Remote Serial Protocol stubs provide a simple interface between GDB and a re
 [PC running GDB] <--(serial)--> [Teensy GDB stub]
 ```
 
-Teensduino comes with a GDB executable for ARM processors, so there is no need to install that.
+Since Teensduino comes with a GDB executable for ARM processors, there is no need to install it.
 
-To start, I recommend you configure Teensy for Dual Serial support. One serial will be used as before. The second serial will be used by GDB. You can compile with Dual serial ports using the menu `Tools / USB Type`. Alternatively you can just use a physical serial port by passing it in, as `debug.begin(Serial1)`.
+To start, I recommend you configure Teensy for Dual Serial support. One serial will be used as before with the Serial Monitor. The second serial will be used by GDB. You can compile with Dual serial ports using the menu `Tools / USB Type`. Alternatively you can just use a physical serial port by passing it in, as `debug.begin(Serial1)`.
 
 Sample code and usage
 -------------------------------------------
@@ -71,8 +74,9 @@ void test_function() {
 }
 
 void setup() {
-  debug.begin(); // init debugger
-  halt();        // stop on startup
+  debug.begin();           // init debugger
+  // debug.begin(Serial1); // or use physical serial port
+  halt();                  // stop on startup
 }
 
 void loop() {
@@ -96,6 +100,8 @@ This new menu provides three options: "Use Dual Serial", "Take over Serial", and
 * Take over Serial: GDB will use the USB Serial to communicate with the Teensy. The library will redefine Serial so that GDB will print your data. All optimizations will be turned off.
 
 * Off: GDB is not used.
+
+If you use this tool, you don't need the `#pragma` or `debug.begin()` statements.
 
 Manual use
 -------------------------------------------
@@ -169,12 +175,14 @@ This is how it works:
 
 7. It will take over the SVC, software and all fault interrupts. The software interrupt will be "chained" so it will process it's own interrupts and any other interrupts will be sent to the original interrupt handler. The SVC handler will trigger first. It will save the registers and then trigger the software interrupt. It does this because the software interrupt has a lower priority and thus Teensy features like USB will continue to work during a software interrupt, but not during an SVC interrupt which has a higher priority. The software interrupt is chained, meaning that if it is called outside of SVC, it will redirect to the previous software interrupt. This is helpful because the Aduio library uses the software interrupt.
 
-Future considerations
+TODO / Future considerations
 ===========================================
+
+The `run.command` script should be ported to Windows and Linux.
 
 The serial connection can be anything that supports reading and writing ASCII in sequence. To start it's probably best to use a UART or USB Serial but in theory it could be USB Serial, CAN, network, Raw connection, etc.
 
-Right now, GDB runs in a separate window. But in the future, GDB could be piped to Arduino's serial monitor. Both GDB's output and Teensy's serial output could be sent to the display. GDB can receive commands from the Send window. If, in addition to this, we use USB for the serial connection to GDB, then Teensy will have onboard live debugging available with no special setup or hardware required.
+Right now, GDB runs in a separate window. But in the future, GDB could be piped to Arduino's serial monitor. Both GDB's output and Teensy's serial output could be sent to the display. GDB can receive commands from the Send window. If, in addition to this.
 
 ```
 [Arduino]      [           ser1] <-- [Teensy & GDB stub]

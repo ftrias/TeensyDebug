@@ -15,7 +15,6 @@
 #define CPU_RESTART (*CPU_RESTART_ADDR = CPU_RESTART_VAL);
 
 #define GDB_DEBUG_INTERNAL
-
 #include "TeensyDebug.h"
 
 /**
@@ -26,7 +25,7 @@
 // #include <HardwareSerial.h>
 // #define dev Serial1
 
-Stream *dev;
+Stream *dev = NULL;
 
 /**
  * @brief Get the next character from the serial
@@ -76,9 +75,9 @@ void devInit(Stream *device = NULL) {
   if (device) {
     dev = device;
   }
-  else {
-    dev = &Serial1;
-    Serial1.begin(9600);
+  else if (dev == NULL) {
+    dev = &Serial;
+    Serial.begin(9600);
   }
 }
 
@@ -729,9 +728,6 @@ IntervalTimer gdb_timer;
  * @param device Optional device that inherits from Stream; default is Serial
  */
 void gdb_init(Stream *device) {
-  if (device == NULL) {
-    device = &Serial;
-  }
   // Serial.println("GDB stub active");
   send_message[0] = 0;
   debug_active = 1;

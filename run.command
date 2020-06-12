@@ -66,16 +66,19 @@ def installGDB():
     f.write("menu.gdb=GDB\n")
     for ver in ('41','40','32'):
       f.write("""
-teensy%s.menu.gdb.on=Use dual Serial
-teensy%s.menu.gdb.on.build.gdb=1
-teensy%s.menu.gdb.on.build.flags.optimize=-O0
-teensy%s.menu.gdb.on2=Take over Serial
-teensy%s.menu.gdb.on2.build.gdb=2
-teensy%s.menu.gdb.on2.build.flags.optimize=-O0 -DGDB_TAKE_OVER_SERIAL
+teensy%s.menu.gdb.serial=Take over Serial
+teensy%s.menu.gdb.serial.build.gdb=2
+teensy%s.menu.gdb.serial.build.flags.optimize=-O0 -g -DGDB_TAKE_OVER_SERIAL
+teensy%s.menu.gdb.dual=Use dual Serial
+teensy%s.menu.gdb.dual.build.gdb=1
+teensy%s.menu.gdb.dual.build.flags.optimize=-O0 -g -DGDB_DUAL_SERIAL
+teensy%s.menu.gdb.manual=Manual device selection
+teensy%s.menu.gdb.manual.build.gdb=3
+teensy%s.menu.gdb.manual.build.flags.optimize=-O0 -g -DGDB_MANUAL_SELECTION
 teensy%s.menu.gdb.off=Off
 teensy%s.menu.gdb.off.build.gdb=0
 teensy%s.upload.tool=gdbtool
-""" % (ver,ver,ver,ver,ver,ver,ver,ver,ver))
+""" % (ver,ver,ver,ver,ver,ver,ver,ver,ver,ver,ver,ver))
 
   with open(AVR + "platform.local.txt", "w+") as f:
     f.write("""
@@ -112,6 +115,8 @@ if x != 0:
 # if gdb option is off or missing, don't run gdb so just end here
 if args.has("gdb"):
   if args.gdb == "0": exit(0)
+else:
+  exit(0)
 
 usedev = None
 
@@ -135,29 +140,35 @@ time.sleep(2)
 out.kill()
 stdout,stderr = out.communicate()
 
-devs = []
+if args.gdb == "3":
 
-# parse the output to get the ports
-for line in stdout.decode().splitlines():
-  if not re.search('label', line): continue
-  if re.search('no_device', line): continue
-  if not re.search('Serial', line): continue
-  a = line.split(': ')
-  dev = a[1][1:].split(' ')[0]
-  # if using dual serials and it's the programming port, ignore it
-  if args.gdb == "1" and dev == args.port: continue
-  print(dev)
-  devs.append(dev)
+  gdbcommand = "'%s' '%s'" % (GDB, ELF)
 
-if len(devs) <= 0:
-  print("Could not find a extra Serial device. Did you compile one?")
-  exit(1)
+else:
 
-# get the last port found
-usedev = sorted(devs)[-1]
+  devs = []
+  # parse the output to get the ports
+  for line in stdout.decode().splitlines():
+    if not re.search('label', line): continue
+    if re.search('no_device', line): continue
+    if not re.search('Serial', line): continue
+    a = line.split(': ')
+    dev = a[1][1:].split(' ')[0]
+    # if using dual serials and it's the programming port, ignore it
+    if args.gdb == "1" and dev == args.port: continue
+    print(dev)
+    devs.append(dev)
 
-# create gdb command and store in batch file
-gdbcommand = "'%s' -ex 'target remote %s' '%s'" % (GDB, usedev, ELF)
+  if len(devs) <= 0:
+    print("Could not find a extra Serial device. Did you compile one?")
+    exit(1)
+
+  # get the last port found
+  usedev = sorted(devs)[-1]
+
+  # create gdb command and store in batch file
+  gdbcommand = "'%s' -ex 'target remote %s' '%s'" % (GDB, usedev, ELF)
+
 f = tempfile.NamedTemporaryFile("w", suffix=".command", delete=False)
 f.write(gdbcommand)
 f.write("\n")

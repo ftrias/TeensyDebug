@@ -31,6 +31,9 @@ https://sourceware.org/gdb/current/onlinedocs/gdb/Remote-Protocol.html#Remote-Pr
 
 #include <Arduino.h>
 
+#define GDB_DEBUG_INTERNAL
+#include "TeensyDebug.h"
+
 /**
  * @brief Memory maps missing from headers
  * 
@@ -367,17 +370,26 @@ void (*callback)() = NULL;
 int debugactive = 0;
 
 // Saved address to restore original breakpoint
-uint32_T debugreset = 0;
+uint32_t debugreset = 0;
+
+// Counter for debugging; counts number of breakpoint calls
 int debugcount = 0;
+
+// Debug system is enabled?
 int debugenabled = 0;
+
+// Are we in a breakpoint or step instruction?
 int debugstep = 0;
 
-// During the initial breakpoint, the next address to break on
-uint32_t nextpc = 0;
-
+// Pretty names for breakpoint and fault types
 const char *hard_fault_debug_text[] = {
   "debug", "nmi", "hard", "mem", "bus", "usage"
 };
+
+// The interrupt call
+// 0 = breakpoint
+// 1 = nmi
+// 2 = hard fault, etc.
 uint32_t debug_id = 0;
 
 // Copy of the registers at breakpoint
@@ -601,8 +613,8 @@ __attribute__((noinline, naked))
 void svcall_isr() {
   asm volatile(SAVE_REGISTERS);
   asm volatile("push {lr}");
-  uint8_t *memory = (uint8_t*)(stack->pc - 2);
 #if 0
+  uint8_t *memory = (uint8_t*)(stack->pc - 2);
   if ((*memory) & 0xFFF0 == 0xdf10|| debug_isBreakpoint(memory)) {
     debug_call_isr_setup();
   }
@@ -810,11 +822,21 @@ void debug_init() {
   debug_initBreakpoints();
 }
 
-// We will rename the original setup() to this by using a #define
-void setup_main();
 void gdb_init(Stream *device);
 
-#ifdef HAS_FP_MAP
+#ifdef REMAP_SETUP
+
+// We will rename the original setup() to this by using a #define
+void setup_main();
+
+void debug_setup_auto() {
+#ifdef GDB_DUAL_SERIAL
+  gdb_init(&SerialUSB1);
+#endif
+#ifdef GDB_TAKE_OVER_SERIAL
+  gdb_init(&Serial);
+#endif
+}
 
 /*
  * The setup function must allocate space on the stack for the remap table; this space must
@@ -826,9 +848,10 @@ void __attribute__((naked)) setup() {
 
 #ifdef HAS_FP_MAP
   asm volatile("sub sp, #512");                       // allocate 512 bytes so we have room to align data
-  asm volatile("mov %0, sp" : "=r" (save_stack) );   // save the location
+  asm volatile("mov %0, sp" : "=r" (save_stack) );    // save the location
 #endif
   asm volatile("push {lr}");                          // save the return address
+  debug_setup_auto();
   setup_main();                                       // call the "real" setup function
   asm volatile("pop {pc}");                           // get original return address
 }
@@ -850,8 +873,6 @@ int debug_begin(Stream *device) {
 /**
  * Class
  */
-
-#include "TeensyDebug.h"
 
 int Debug::begin(Stream *device) { return debug_begin(device); }
 int Debug::setBreakpoint(void *p, int n) { return debug_setBreakpoint(p, n); }

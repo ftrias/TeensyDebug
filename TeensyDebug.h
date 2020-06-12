@@ -18,10 +18,22 @@
 #define HAS_FP_MAP
 #endif
 
+#if defined(GDB_DUAL_SERIAL) && ! defined(CDC2_DATA_INTERFACE)
+#error "You must use Dual Serial or Triple Serial to enable GDB on Dual Serial."
+#endif
+
+#if defined(GDB_TAKE_OVER_SERIAL) && ! defined(CDC_DATA_INTERFACE)
+#error "You must use a USB setup with Serial to enable GDB to take over a Serial interface."
+#endif
+
+#if defined(HAS_FP_MAP) || defined(GDB_DUAL_SERIAL) || defined(GDB_TAKE_OVER_SERIAL)
+#define REMAP_SETUP
+#endif
+
 // If this is used internally, not need to remap
 #ifndef GDB_DEBUG_INTERNAL
 
-#ifdef HAS_FP_MAP
+#ifdef REMAP_SETUP
 // rename the original setup() because we need to hijack it
 #define setup setup_main
 #endif
