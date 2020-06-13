@@ -480,7 +480,8 @@ void *instructionReturn(void *p) {
   return 0;
 }
 
-void *instructionBranch(void *p) {
+void *instructionBranch(void *p, int *bx) {
+  *bx = 0;
   uint16_t inst = *(uint16_t*)p;
   // B conditional
   if ((inst & 0xF000) == 0xD000) {
@@ -495,13 +496,14 @@ void *instructionBranch(void *p) {
     }
     return (void*)(save_registers.pc + offset);
   }
-  // BX
-  else if ((inst & 0xFF80) == 0x8E00) {
+  // BX or BLX
+  else if ((inst & 0xFF00) == 0x4700) {
     int reg = (inst >> 3) & 0b1111;
     uint32_t addr = getRegisterNum(reg);
+    *bx = 1;
     return (void*)(addr);
   }
-  // BL or BLX prefix
+  // BL prefix
   else if ((inst & 0xF800) == 0xF000) {
     int offset1 = inst & 0x3F;
     uint16_t inst2 = ((uint16_t*)p)[1];
@@ -511,7 +513,7 @@ void *instructionBranch(void *p) {
       offset |= 0xFFFE0000;
     }
     offset <<= 1;
-    Serial.print("offset ");Serial.println(offset, HEX);
+    // Serial.print("offset ");Serial.println(offset, HEX);
     return (void*)(save_registers.pc + offset + 2);
   }
   return 0;
@@ -532,22 +534,104 @@ uint32_t debugreset = 0;
 uint32_t temp_breakpoint = 0;
 uint32_t temp_breakpoint2 = 0;
 
+void setBreakPointNext(uint32_t breakaddr, uint32_t nextaddr) {
+  void *ret = instructionReturn((void*)breakaddr);
+  // is this a return of some sort?
+  if (ret) {
+    temp_breakpoint = (uint32_t)ret;
+    // Serial.print("return to ");Serial.println(temp_breakpoint, HEX);
+  }
+  else {
+    int bx;
+    void *b = instructionBranch((void*)breakaddr, &bx);
+    if (b) {
+      temp_breakpoint2 = (uint32_t)b;
+      // Serial.print("branch to ");Serial.println(temp_breakpoint2, HEX);
+      debug_setBreakpoint((void*)temp_breakpoint2, 0);
+    }
+    // is 32 bits wide?
+    if (instructionWidth((void*)breakaddr) == 2) {
+    // Serial.print("32-bit instruction at ");Serial.println(breakaddr, HEX);
+      temp_breakpoint = nextaddr + 2;
+    }
+    else {
+      temp_breakpoint = nextaddr;
+    }
+  }
+  debug_setBreakpoint((void*)temp_breakpoint, 0);
+}
 /**
  * @brief Called by software interrupt to perform breakpoint manipulation
  * during execution and to call the callback.
  * 
  */
 void debug_monitor() {
+  uint32_t nextaddr = save_registers.pc;
+  uint32_t breakaddr = save_registers.pc - 2;
+
+  // Serial.print("break at ");Serial.println(breakaddr, HEX);
+  // print_registers();
+
+  if (! debug_isHardcoded((void*)breakaddr)) {
+    save_registers.pc = breakaddr; // gdb expects address at breakpoint in pc
+    // set to rerun current instruction
+    stack->pc = breakaddr;
+  }
+
+  // gdb will clear the current breakpoint but we do this so disassembly looks good
+  debug_clearBreakpoint((void*)breakaddr, 1);
+  // clear the temporary breakpoints
+  if (temp_breakpoint) {
+    debug_clearBreakpoint((void*)temp_breakpoint, 0);
+    temp_breakpoint = 0;
+  }
+  if (temp_breakpoint2) {
+    debug_clearBreakpoint((void*)temp_breakpoint2, 2); 
+    temp_breakpoint2 = 0;
+  }
+
+  // Adjust original SP to before the interrupt call - remove ISRs stack entries
+  save_registers.sp += 20;
+
+  if (callback) {
+    callback();
+  }
+  else {
+    debug_action();
+  }
+
+  // if we need to reset the original, do so
+  if (debugreset) {
+    debug_setBreakpoint((void*)debugreset, 1);
+    debugreset = 0;
+  }
+
+  if (debugstep) {
+    // break at next instruction
+    setBreakPointNext(breakaddr, nextaddr);
+    // the original breakpoint needs to be put back after next break
+    // debugreset = breakaddr;
+  }
+}
+
+void xdebug_monitor() {
+  uint32_t nextaddr = save_registers.pc;
   uint32_t breakaddr = save_registers.pc - 2;
 
   Serial.print("break at ");Serial.println(breakaddr, HEX);
+  print_registers();
+
+  save_registers.pc = breakaddr; // gdb expects address at breakpoint in pc
 
   // is this the first breakpoint or are we in a sequence?
   if (debugactive == 0) {
+    Serial.println("first break");
     // Adjust original SP to before the interrupt call - remove ISRs stack entries
     save_registers.sp += 20;
 
     // Serial.print("stop at ");Serial.println(breakaddr, HEX);
+
+    int softbreak = debug_isBreakpoint((void*)breakaddr);
 
     if (callback) {
       callback();
@@ -558,15 +642,17 @@ void debug_monitor() {
 
     if (debug_isHardcoded((void*)breakaddr)) {
     //  Serial.print("hard coded at ");Serial.println(breakaddr, HEX);
+      Serial.print("hard coded breakpoint at ");Serial.println(breakaddr, HEX);
       // do nothing because we continue on to next instruction
     }
-    else if (debug_isBreakpoint((void*)breakaddr)) {
+    else if (softbreak) {
       // our location is a breakpoint so we need to return it to the original and rerun 
       // the instruction; to prevent a problem, set breakpoint to next instruction
       // and at next break, set it back
+      Serial.print("soft breakpoint at ");Serial.println(breakaddr, HEX);
       debug_clearBreakpoint((void*)breakaddr, 1);
       // break at next instruction
-      temp_breakpoint = save_registers.pc;
+      temp_breakpoint = nextaddr;
       debug_setBreakpoint((void*)(temp_breakpoint), 0);
       // set to rerun current instruction
       stack->pc = breakaddr;
@@ -575,8 +661,12 @@ void debug_monitor() {
       // the original breakpoint needs to be put back after next break
       debugreset = breakaddr;
     }
+    else {
+      Serial.print("unknown break at ");Serial.println(breakaddr);
+    }
   }
   else {
+    Serial.println("next break");
     // clear the temporary breakpoint
     debug_clearBreakpoint((void*)temp_breakpoint, 0);
     if (temp_breakpoint2) {
@@ -611,19 +701,20 @@ void debug_monitor() {
         // Serial.print("return to ");Serial.println(temp_breakpoint, HEX);
       }
       else {
-        void *b = instructionBranch((void*)breakaddr);
+        int bx;
+        void *b = instructionBranch((void*)breakaddr, &bx);
         if (b) {
           temp_breakpoint2 = (uint32_t)b;
           Serial.print("branch to ");Serial.println(temp_breakpoint2, HEX);
           debug_setBreakpoint((void*)temp_breakpoint2, 0);
         }
-      // is 32 bits wide?
+        // is 32 bits wide?
         if (instructionWidth((void*)breakaddr) == 2) {
         // Serial.print("32-bit instruction at ");Serial.println(breakaddr, HEX);
-          temp_breakpoint = save_registers.pc + 2;
+          temp_breakpoint = nextaddr + 2;
         }
         else {
-          temp_breakpoint = save_registers.pc;
+          temp_breakpoint = nextaddr;
         }
       }
       debug_setBreakpoint((void*)temp_breakpoint, 0);
@@ -684,13 +775,19 @@ void debug_call_isr() {
   // Are we in debug mode? If not, just jump to original ISR
   if (debugenabled == 0) {
     if (original_software_isr) {
-      asm volatile("mov pc,%0" : : "r" (original_software_isr));
+      // asm volatile("ldr r0, =original_software_isr");
+      // asm volatile("ldr r0, [r0]");
+      // asm volatile("mov pc, r0");
+      asm volatile("mov pc, %0" : : "r" (original_software_isr));
     }
     return;
   }
+  if (debugenabled == 2) { // halt
+    while(1) { yield(); }
+  }
   asm volatile(
-    "ldr r0, =stack \n"
-    "str sp, [r0] \n"
+    // "ldr r0, =stack \n"
+    // "str sp, [r0] \n"
     "push {lr} \n");
   debug_monitor();              // process the debug event
   debugenabled = 0;
@@ -715,22 +812,23 @@ void debug_call_isr_setup() {
 __attribute__((noinline, naked))
 void svcall_isr() {
   asm volatile(SAVE_REGISTERS);
-  asm volatile("push {lr}");
 #if 0
   uint8_t *memory = (uint8_t*)(stack->pc - 2);
   if ((*memory) & 0xFFF0 == 0xdf10|| debug_isBreakpoint(memory)) {
+    asm volatile("push {lr}");
     debug_call_isr_setup();
+    asm volatile("pop {pc}");
   }
   else {
     if (original_svc_isr) {
-      asm volatile("pop {lr}");
-      asm volatile("mov pc,%0" : : "r" (original_svc_isr));
+      asm volatile("mov pc, %0" : : "r" (original_svc_isr));
     }
   }
 #else
+  asm volatile("push {lr}");
   debug_call_isr_setup();
-#endif
   asm volatile("pop {pc}");
+#endif
 }
 
 /**
@@ -833,8 +931,12 @@ void hard_fault_debug(int n) {
   Serial.print("lr=0x");Serial.println(stack->lr, HEX);
   Serial.print("pc=0x");Serial.println(stack->pc, HEX);
   Serial.println("****************");
-  stack->pc += 2;
   debug_crash = 1;
+  stack->pc += 2; // if we continue, skip faulty instructions
+}
+
+extern "C" void fault_halt() {
+  while(1) {}
 }
 
 // uint32_t hard_fault_debug_addr = (uint32_t)hard_fault_debug;
@@ -847,6 +949,14 @@ void hard_fault_debug(int n) {
   asm volatile("ldr r0, =stack \n str sp, [r0]"); \
   asm volatile("push {lr}"); \
   hard_fault_debug(fault); \
+  asm volatile("pop {pc}")
+
+#define xfault_isr_stack(fault) \
+  asm volatile(SAVE_REGISTERS); \
+  asm volatile("push {lr}"); \
+  debug_crash = 1; \
+  debug_id = fault; \
+  debug_call_isr_setup(); \
   asm volatile("pop {pc}")
 
 /**

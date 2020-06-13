@@ -743,7 +743,7 @@ void processGDBinput() {
   }
   *pcmd = 0;
   
-  Serial.print("got command:");Serial.println(cmd);
+  // Serial.print("got command:");Serial.println(cmd);
   
   c = getDebugChar();
   checksum = hex(c) << 4;
