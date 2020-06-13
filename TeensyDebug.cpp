@@ -572,22 +572,22 @@ void debug_monitor() {
   // Serial.print("break at ");Serial.println(breakaddr, HEX);
   // print_registers();
 
-  if (! debug_isHardcoded((void*)breakaddr)) {
+  if (debug_id == 0 && ! debug_isHardcoded((void*)breakaddr)) {
     save_registers.pc = breakaddr; // gdb expects address at breakpoint in pc
     // set to rerun current instruction
     stack->pc = breakaddr;
-  }
 
-  // gdb will clear the current breakpoint but we do this so disassembly looks good
-  debug_clearBreakpoint((void*)breakaddr, 1);
-  // clear the temporary breakpoints
-  if (temp_breakpoint) {
-    debug_clearBreakpoint((void*)temp_breakpoint, 0);
-    temp_breakpoint = 0;
-  }
-  if (temp_breakpoint2) {
-    debug_clearBreakpoint((void*)temp_breakpoint2, 2); 
-    temp_breakpoint2 = 0;
+    // gdb will clear the current breakpoint but we do this so disassembly looks good
+    debug_clearBreakpoint((void*)breakaddr, 1);
+    // clear the temporary breakpoints
+    if (temp_breakpoint) {
+      debug_clearBreakpoint((void*)temp_breakpoint, 0);
+      temp_breakpoint = 0;
+    }
+    if (temp_breakpoint2) {
+      debug_clearBreakpoint((void*)temp_breakpoint2, 2); 
+      temp_breakpoint2 = 0;
+    }
   }
 
   // Adjust original SP to before the interrupt call - remove ISRs stack entries
@@ -894,6 +894,51 @@ uint32_t debug_getRegister(const char *reg) {
   return -1;
 }
 
+int debug_setRegister(const char *reg, uint32_t value) {
+  if (reg[0] == 'r') {
+    if (reg[2] == 0) { // r0-r9
+      switch(reg[1]) {
+        case '0': save_registers.r0 = value; return 1;
+        case '1': save_registers.r1 = value; return 1;
+        case '2': save_registers.r2 = value; return 1;
+        case '3': save_registers.r3 = value; return 1;
+        case '4': save_registers.r4 = value; return 1;
+        case '5': save_registers.r5 = value; return 1;
+        case '6': save_registers.r6 = value; return 1;
+        case '7': save_registers.r7 = value; return 1;
+        case '8': save_registers.r8 = value; return 1;
+        case '9': save_registers.r9 = value; return 1;
+        default: return 0;
+      }
+    }
+    else if (reg[1] == '1') { // r10-r12
+      switch(reg[1]) {
+        case '0': save_registers.r10 = value; return 1;
+        case '1': save_registers.r11 = value; return 1;
+        case '2': save_registers.r12 = value; return 1;
+        default: return 0;
+      }
+    }
+  }
+  else if (strcmp(reg, "lr")==0) save_registers.lr = value;
+  else if (strcmp(reg, "pc")==0) save_registers.pc = value;
+  else if (strcmp(reg, "sp")==0) save_registers.sp = value;
+  else if (strcmp(reg, "cpsr")==0) save_registers.xPSR = value;
+  else {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * @brief TODO, flag to restore registers on return
+ * 
+ * @return int 0 = success
+ */
+int debug_restoreRunMode() {
+  return 0;
+}
+
 /**
  * Fault debug messages
  */
@@ -932,11 +977,13 @@ void hard_fault_debug(int n) {
   Serial.print("pc=0x");Serial.println(stack->pc, HEX);
   Serial.println("****************");
   debug_crash = 1;
-  stack->pc += 2; // if we continue, skip faulty instructions
+  stack->pc += 2; // if we continue, skip faulty instruction
 }
 
-extern "C" void fault_halt() {
-  while(1) {}
+extern "C" 
+__attribute__((noinline, naked)) 
+void fault_halt() {
+  while(1) { asm volatile("wfi"); }
 }
 
 // uint32_t hard_fault_debug_addr = (uint32_t)hard_fault_debug;
@@ -945,13 +992,13 @@ extern "C" void fault_halt() {
 #pragma GCC optimize ("O0")
 
 // Save registers during fault and call default handler
-#define fault_isr_stack(fault) \
+#define xfault_isr_stack(fault) \
   asm volatile("ldr r0, =stack \n str sp, [r0]"); \
   asm volatile("push {lr}"); \
   hard_fault_debug(fault); \
   asm volatile("pop {pc}")
 
-#define xfault_isr_stack(fault) \
+#define fault_isr_stack(fault) \
   asm volatile(SAVE_REGISTERS); \
   asm volatile("push {lr}"); \
   debug_crash = 1; \
@@ -1101,5 +1148,7 @@ int Debug::setBreakpoint(void *p, int n) { return debug_setBreakpoint(p, n); }
 int Debug::clearBreakpoint(void *p, int n) { return debug_clearBreakpoint(p, n); }
 void Debug::setCallback(void (*c)()) { callback = c; }
 uint32_t Debug::getRegister(const char *reg) { return debug_getRegister(reg); }
+int Debug::setRegister(const char *reg, uint32_t value) { return debug_setRegister(reg, value); }
+int Debug::restoreRunMode() { return debug_restoreRunMode(); }
 
 Debug debug;

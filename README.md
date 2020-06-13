@@ -38,7 +38,7 @@ void test_function() {
 }
 
 void setup() {
-  debug.begin();           // init debugger
+  debug.begin();           // init debugger; not need if using Mac tool
   // debug.begin(Serial1); // or use physical serial port
   halt();                  // stop on startup
 }

@@ -188,6 +188,22 @@ static int hexToInt(const char **ptr, int *intValue)
   return (numChars);
 }
 
+static int hex32ToInt(const char **ptr)
+{
+  const char *p = *ptr;
+  uint32_t intValue;
+  uint8_t *i = (uint8_t*)&intValue;
+
+  i[0] = (hex(p[0]) << 4) + hex(p[1]);
+  i[1] = (hex(p[2]) << 4) + hex(p[3]);
+  i[2] = (hex(p[4]) << 4) + hex(p[5]);
+  i[3] = (hex(p[6]) << 4) + hex(p[7]);
+
+  // Serial.print("parse ");Serial.println(intValue);
+  *ptr += 8;
+  return intValue;
+}
+
 /**
  * @brief Send result text to GDB (formatting and calculating checksum)
  * 
@@ -283,7 +299,7 @@ void process_onbreak() {
  * @param n Number to encode
  * @return char* Pointer last item (a \0) so you can continue appending
  */
-char *append32(char *p, int n) {
+char *append32(char *p, uint32_t n) {
   uint8_t *x = (uint8_t *) &n;
   for(int i=0; i<4; i++) {
     int c = x[i];
@@ -330,7 +346,26 @@ int process_g(const char *cmd, char *result) {
  * @return int 
  */
 int process_G(const char *cmd, char *result) {
-  strcpy(result, "E01");
+  // Serial.print("command G:");Serial.println(cmd);
+  cmd++;
+  debug.setRegister("r0", hex32ToInt(&cmd));
+  debug.setRegister("r1", hex32ToInt(&cmd));
+  debug.setRegister("r2", hex32ToInt(&cmd));
+  debug.setRegister("r3", hex32ToInt(&cmd));
+  debug.setRegister("r4", hex32ToInt(&cmd));
+  debug.setRegister("r5", hex32ToInt(&cmd));
+  debug.setRegister("r6", hex32ToInt(&cmd));
+  debug.setRegister("r7", hex32ToInt(&cmd));
+  debug.setRegister("r8", hex32ToInt(&cmd));
+  debug.setRegister("r9", hex32ToInt(&cmd));
+  debug.setRegister("r10", hex32ToInt(&cmd));
+  debug.setRegister("r11", hex32ToInt(&cmd));
+  debug.setRegister("r12", hex32ToInt(&cmd));
+  debug.setRegister("sp", hex32ToInt(&cmd));
+  debug.setRegister("lr", hex32ToInt(&cmd));
+  debug.setRegister("pc", hex32ToInt(&cmd));
+  debug.setRegister("cspr", hex32ToInt(&cmd));
+  strcpy(result, "OK");
   return 0;
 }
 

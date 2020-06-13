@@ -78,6 +78,8 @@ public:
   int clearBreakpoint(void *p, int n=1);
   void setCallback(void (*c)());
   uint32_t getRegister(const char *reg);
+  int setRegister(const char *reg, uint32_t value);
+  int restoreRunMode();
 
   virtual size_t write(uint8_t b) { 
     return write(&b, 1);
