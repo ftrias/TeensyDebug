@@ -11,42 +11,6 @@ This module provides breakpoint support for the Teensy 3/4 platform from PJRC wi
 
 For background see: https://forum.pjrc.com/threads/26358-Software-Debugger-Stack
 
-Stand-alone usage
-===========================================
-
-The debugger can work stand-alone by debugging itself or in conjuction with GDB, the GNU Debugger. Stand-alone is not particularly useful, but is presented for illustrative purposes.
-
-```C
-#include "TeensyDebug.h"
-#pragma GCC optimize ("O0") // disable optimizations
-
-int mark1 = 0;
-
-// called for every breakpoint
-void break_me() {
-  Serial.print("BREAK at 0x"); 
-  Serial.println(debug.getRegister("pc"), HEX);
-}
-
-void test_function() {
-  mark1++;
-}
-
-void setup() {
-  debug.begin();
-  debug.setCallback(break_me);
-  debug.setBreakpoint(test_function);
-}
-
-void loop() {
-  test_function();
-  Serial.println(mark);
-  delay(1000);
-}
-```
-
-First, you must disable optimizations. If not, GCC will inline `test_function()` and you won't be able to set a breakpoint on it. For every breakpoint, `break_me` will be called. If you don't specify a callback, the default is just to print the registers and keep going. Note that the Teensy will not halt on the breakpoint. If you want to stop or delay, you must add that code yourself with a `delay()` or similar.
-
 GDB usage
 ===========================================
 
