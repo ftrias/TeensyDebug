@@ -47,26 +47,29 @@
 #endif
 
 // If this is used internally, not need to remap
-#ifndef GDB_DEBUG_INTERNAL
+#ifdef GDB_DEBUG_INTERNAL
 
-#ifdef REMAP_SETUP
-// rename the original setup() because we need to hijack it
-#define setup setup_main
-#endif
 
-#ifdef GDB_TAKE_OVER_SERIAL
-#define Serial debug
-#endif
+#else
+
+  #ifdef REMAP_SETUP
+  // rename the original setup() because we need to hijack it
+  #define setup setup_main
+  #endif
+
+  #ifdef GDB_TAKE_OVER_SERIAL
+  #define Serial debug
+  #endif
 
 #endif
 
 int hcdebug_isEnabled(int n);
 int hcdebug_setBreakpoint(int n);
 
-int debug_setBreakpoint(void *p, int n);
-int debug_clearBreakpoint(void *p, int n);
-void debug_setCallback(void (*c)());
-uint32_t debug_getRegister(const char *reg);
+// int debug_setBreakpoint(void *p, int n);
+// int debug_clearBreakpoint(void *p, int n);
+// void debug_setCallback(void (*c)());
+// uint32_t debug_getRegister(const char *reg);
 
 size_t gdb_out_write(const uint8_t *msg, size_t len);
 
@@ -96,7 +99,7 @@ extern Debug debug;
 #define breakpoint(n) {if (hcdebug_isEnabled(n)) {asm volatile("svc #0x11");}}
 #define breakpoint_enable(n) {hcdebug_setBreakpoint(n);}
 #define halt() {asm volatile("svc #0x11");}
-
+// #define triggerBreakpoint() { NVIC_SET_PENDING(IRQ_SOFTWARE); }
 #define DEBUGRUN __attribute__ ((section(".fastrun"), noinline, noclone ))
 
 #endif

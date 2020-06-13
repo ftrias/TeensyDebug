@@ -214,7 +214,8 @@ int debug_isHardcoded(void *addr) {
   // }
   uint16_t *p = (uint16_t*)addr;
   // SVC 0x11 is reserved for hardcoded breaks
-  if (p[0] == 0xdf11) {
+  // SVC 0x12 is Ctrl-C trap
+  if (p[0] == 0xdf11 || p[0] == 0xdf12) {
     return 1;
   }
   return 0;
@@ -356,10 +357,6 @@ int debug_isBreakpoint(void *p) {
 // breakpoint handler pointer
 void (*callback)() = NULL;
 
-// If debugactive=0, this means the actual breakpoint. 
-// If debugactive=1, this is the follow on breakpoint.
-int debugactive = 0;
-
 // Counter for debugging; counts number of breakpoint calls
 int debugcount = 0;
 
@@ -371,7 +368,7 @@ int debugstep = 0;
 
 // Pretty names for breakpoint and fault types
 const char *hard_fault_debug_text[] = {
-  "debug", "nmi", "hard", "mem", "bus", "usage"
+  "debug", "break", "nmi", "hard", "mem", "bus", "usage"
 };
 
 // The interrupt call
@@ -572,12 +569,21 @@ void debug_monitor() {
   // Serial.print("break at ");Serial.println(breakaddr, HEX);
   // print_registers();
 
-  if (debug_id == 0 && ! debug_isHardcoded((void*)breakaddr)) {
+  if (debug_isHardcoded((void*)breakaddr)) {
+    // do nothing for hardcoded interrupts; we continue on next instruction
+  }
+  // else if (debug_id == 3) { // break cause by Ctrl-C
+  //   // Serial.print("manual breakpoint at ");Serial.println(breakaddr, HEX);
+  //   // do nothing because we continue on to next instruction
+  // }
+  // regular breakpoint
+  else if (debug_id == 0) {
     save_registers.pc = breakaddr; // gdb expects address at breakpoint in pc
     // set to rerun current instruction
     stack->pc = breakaddr;
 
-    // gdb will clear the current breakpoint but we do this so disassembly looks good
+    // gdb will clear the current breakpoint but we do this first so disassembly holds 
+    // original code
     debug_clearBreakpoint((void*)breakaddr, 1);
     // clear the temporary breakpoints
     if (temp_breakpoint) {
@@ -590,7 +596,8 @@ void debug_monitor() {
     }
   }
 
-  // Adjust original SP to before the interrupt call - remove ISRs stack entries
+  // Adjust original SP to before the interrupt call to remove ISRs stack entries
+  // go GDB has correct stack frame
   save_registers.sp += 20;
 
   if (callback) {
@@ -599,6 +606,8 @@ void debug_monitor() {
   else {
     debug_action();
   }
+
+  debug_id = 0;
 
   // if we need to reset the original, do so
   if (debugreset) {
@@ -614,139 +623,31 @@ void debug_monitor() {
   }
 }
 
-void xdebug_monitor() {
-  uint32_t nextaddr = save_registers.pc;
-  uint32_t breakaddr = save_registers.pc - 2;
-
-  Serial.print("break at ");Serial.println(breakaddr, HEX);
-  print_registers();
-
-  save_registers.pc = breakaddr; // gdb expects address at breakpoint in pc
-
-  // is this the first breakpoint or are we in a sequence?
-  if (debugactive == 0) {
-    Serial.println("first break");
-    // Adjust original SP to before the interrupt call - remove ISRs stack entries
-    save_registers.sp += 20;
-
-    // Serial.print("stop at ");Serial.println(breakaddr, HEX);
-
-    int softbreak = debug_isBreakpoint((void*)breakaddr);
-
-    if (callback) {
-      callback();
-    }
-    else {
-      debug_action();
-    }
-
-    if (debug_isHardcoded((void*)breakaddr)) {
-    //  Serial.print("hard coded at ");Serial.println(breakaddr, HEX);
-      Serial.print("hard coded breakpoint at ");Serial.println(breakaddr, HEX);
-      // do nothing because we continue on to next instruction
-    }
-    else if (softbreak) {
-      // our location is a breakpoint so we need to return it to the original and rerun 
-      // the instruction; to prevent a problem, set breakpoint to next instruction
-      // and at next break, set it back
-      Serial.print("soft breakpoint at ");Serial.println(breakaddr, HEX);
-      debug_clearBreakpoint((void*)breakaddr, 1);
-      // break at next instruction
-      temp_breakpoint = nextaddr;
-      debug_setBreakpoint((void*)(temp_breakpoint), 0);
-      // set to rerun current instruction
-      stack->pc = breakaddr;
-      // we need to process the next breakpoint differently
-      debugactive = 1;
-      // the original breakpoint needs to be put back after next break
-      debugreset = breakaddr;
-    }
-    else {
-      Serial.print("unknown break at ");Serial.println(breakaddr);
-    }
-  }
-  else {
-    Serial.println("next break");
-    // clear the temporary breakpoint
-    debug_clearBreakpoint((void*)temp_breakpoint, 0);
-    if (temp_breakpoint2) {
-      debug_clearBreakpoint((void*)temp_breakpoint2, 2); 
-      temp_breakpoint2 = 0;
-    }
-
-    // reset to re-run the instruction
-    stack->pc = breakaddr;
-
-    // if we need to reset the original, do so
-    if (debugreset) {
-      debug_setBreakpoint((void*)debugreset, 1);
-      debugreset = 0;
-    }
-
-    // are we stepping instruction by instruction?
-    if (debugstep) {
-      // we're stepping so process any commands and break at next 
-      // and stay in this mode
-      if (callback) {
-        callback();
-      }
-      else {
-        debug_action();
-      }
-
-      void *ret = instructionReturn((void*)breakaddr);
-      // is this a return of some sort?
-      if (ret) {
-        temp_breakpoint = (uint32_t)ret;
-        // Serial.print("return to ");Serial.println(temp_breakpoint, HEX);
-      }
-      else {
-        int bx;
-        void *b = instructionBranch((void*)breakaddr, &bx);
-        if (b) {
-          temp_breakpoint2 = (uint32_t)b;
-          Serial.print("branch to ");Serial.println(temp_breakpoint2, HEX);
-          debug_setBreakpoint((void*)temp_breakpoint2, 0);
-        }
-        // is 32 bits wide?
-        if (instructionWidth((void*)breakaddr) == 2) {
-        // Serial.print("32-bit instruction at ");Serial.println(breakaddr, HEX);
-          temp_breakpoint = nextaddr + 2;
-        }
-        else {
-          temp_breakpoint = nextaddr;
-        }
-      }
-      debug_setBreakpoint((void*)temp_breakpoint, 0);
-    }
-    else {
-      // we're not stepping so reset mode
-      debugactive = 0;
-    }
-  }
-}
+#define SAVE_STACK \
+    "ldr r0, =stack \n" \
+    "str sp, [r0] \n"
 
 // Save registers within an interrupt. Changes R0 register
 #define SAVE_REGISTERS \
     "ldr r0, =stack \n" \
-    "str sp, [r0] \n" \
+    "ldr r1, [r0] \n " \
     "ldr r0, =save_registers \n" \
-    "ldr r2, [sp, #0] \n" \
+    "ldr r2, [r1, #0] \n" \
     "str r2, [r0, #0] \n" \
-    "ldr r2, [sp, #4] \n" \
+    "ldr r2, [r1, #4] \n" \
     "str r2, [r0, #4] \n" \
-    "ldr r2, [sp, #8] \n" \
+    "ldr r2, [r1, #8] \n" \
     "str r2, [r0, #8] \n" \
-    "ldr r2, [sp, #12] \n" \
+    "ldr r2, [r1, #12] \n" \
     "str r2, [r0, #12] \n" \
-    "ldr r2, [sp, #16] \n" \
+    "ldr r2, [r1, #16] \n" \
     "str r2, [r0, #16] \n" \
     \
-    "ldr r2, [sp, #20] \n" \
+    "ldr r2, [r1, #20] \n" \
     "str r2, [r0, #20] \n" \
-    "ldr r2, [sp, #24] \n" \
+    "ldr r2, [r1, #24] \n" \
     "str r2, [r0, #24] \n" \
-    "ldr r2, [sp, #28] \n" \
+    "ldr r2, [r1, #28] \n" \
     "str r2, [r0, #28] \n" \
     \
     "str r4, [r0, #32] \n" \
@@ -757,7 +658,7 @@ void xdebug_monitor() {
     "str r9, [r0, #52] \n" \
     "str r10, [r0, #56] \n" \
     "str r11, [r0, #60] \n" \
-    "str sp, [r0, #64] \n"
+    "str r1, [r0, #64] \n"
 
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
@@ -772,6 +673,10 @@ void (*original_svc_isr)() = NULL;
  */
 __attribute__((noinline, naked))
 void debug_call_isr() {
+  asm volatile(SAVE_STACK);
+  asm volatile(SAVE_REGISTERS);
+  NVIC_CLEAR_PENDING(IRQ_SOFTWARE);
+
   // Are we in debug mode? If not, just jump to original ISR
   if (debugenabled == 0) {
     if (original_software_isr) {
@@ -782,13 +687,12 @@ void debug_call_isr() {
     }
     return;
   }
-  if (debugenabled == 2) { // halt
+
+  if (debugenabled == 2) { // halt permenantly
     while(1) { yield(); }
   }
-  asm volatile(
-    // "ldr r0, =stack \n"
-    // "str sp, [r0] \n"
-    "push {lr} \n");
+
+  asm volatile("push {lr}");
   debug_monitor();              // process the debug event
   debugenabled = 0;
   asm volatile("pop {pc}");
@@ -811,7 +715,6 @@ void debug_call_isr_setup() {
  */
 __attribute__((noinline, naked))
 void svcall_isr() {
-  asm volatile(SAVE_REGISTERS);
 #if 0
   uint8_t *memory = (uint8_t*)(stack->pc - 2);
   if ((*memory) & 0xFFF0 == 0xdf10|| debug_isBreakpoint(memory)) {
@@ -999,6 +902,7 @@ void fault_halt() {
   asm volatile("pop {pc}")
 
 #define fault_isr_stack(fault) \
+  asm volatile(SAVE_STACK); \
   asm volatile(SAVE_REGISTERS); \
   asm volatile("push {lr}"); \
   debug_crash = 1; \
@@ -1010,11 +914,11 @@ void fault_halt() {
  * @brief Trap faults
  * 
  */
-__attribute__((noinline, naked)) void call_nmi_isr(void) { fault_isr_stack(1); }
-__attribute__((noinline, naked)) void call_hard_fault_isr(void) { fault_isr_stack(2); }
-__attribute__((noinline, naked)) void call_memmanage_fault_isr(void) { fault_isr_stack(3); } 
-__attribute__((noinline, naked)) void call_bus_fault_isr(void)  { fault_isr_stack(4); }
-__attribute__((noinline, naked)) void call_usage_fault_isr(void)  { fault_isr_stack(5); }
+__attribute__((noinline, naked)) void call_nmi_isr(void) { fault_isr_stack(2); }
+__attribute__((noinline, naked)) void call_hard_fault_isr(void) { fault_isr_stack(3); }
+__attribute__((noinline, naked)) void call_memmanage_fault_isr(void) { fault_isr_stack(4); } 
+__attribute__((noinline, naked)) void call_bus_fault_isr(void)  { fault_isr_stack(5); }
+__attribute__((noinline, naked)) void call_usage_fault_isr(void)  { fault_isr_stack(6); }
 
 #pragma GCC pop_options
 

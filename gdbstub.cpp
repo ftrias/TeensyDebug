@@ -84,7 +84,7 @@ void devInit(Stream *device = NULL) {
 
 // Signal codes for ARM faults
 const char *signal_text[] = {
-  "S05", "S10", "S11", "S11", "S10", "S04"
+  "S05", "S02", "S10", "S11", "S11", "S10", "S04"
 };
 
 /**
@@ -239,6 +239,9 @@ extern int debug_id;
 
 // from debug indicting we are "stepping" instructions
 extern int debugstep;
+
+
+extern int debugenabled;
 
 // for messages that are sent seperately (like 'O', print)
 char send_message[256];
@@ -491,8 +494,8 @@ int process_s(const char *cmd, char *result) {
  * @return int 
  */
 int process_question(const char *cmd, char *result) {
-  sprintf(result, "S0%d", debug_id);
-  // strcpy(result, "S00");
+  // sprintf(result, "S0%d", debug_id);
+  strcpy(result, signal_text[debug_id]);
   return 0;
 }
 
@@ -827,6 +830,8 @@ void processGDB() {
   if (cause_break) {
     // Serial.println("BREAK!!");
     cause_break = 0;
+    debug_id = 1;
+    // NVIC_SET_PENDING(IRQ_SOFTWARE); 
     asm volatile("svc 0x12");
   }
 }
