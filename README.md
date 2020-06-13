@@ -186,7 +186,11 @@ TODO / Future considerations
 Bugs
 -------------------------------------------
 
-1. `step` and `next` don't work completely. `step` will not step into functions. Both won't work over a return. TeensyDebug traps `bx lr`, `pop {Rmmm, pc}`, `mov pc, Rm` and will actually step properly over these instruction if using gdb `stepi` command. However gdb `step` and `next` get confused and don't stop stepping once the function returns.
+1. Because stepping is implemented by putting a `SVC` in the next instruction, there are a number of bugs related to `step` and `next`. 
+
+2. `step` will not step into functions. Stepping won't work over a return. TeensyDebug traps `bx lr`, `pop {Rmmm, pc}`, `mov pc, Rm` and will actually step properly over these instruction if using gdb `stepi` command. However gdb `step` and `next` get confused and don't stop stepping once the function returns.
+
+3. Stepping fails over branches. To fix, this will have to implement decoding of branches, which can be a bit complicated.
 
 Future considerations
 -------------------------------------------

@@ -1,22 +1,19 @@
 
 20200612
 
-Pulled together some codethat allows GDB to perform source-level debugging on the Teensy without an external debug interface (no need for SWD, etc). It uses GDB's Remote Serial Protocol to communicate with Teensy over a Serial connection (hardware or USB). This is a beta release for comments and testing. It works on Teensy 4 and 3.2. Tested on Mac. Highlights:
+I put together some code that allows GDB to perform source-level debugging on the Teensy without an external debug interface (no need for SWD, etc). It uses GDB's Remote Serial Protocol to communicate with Teensy over a Serial connection (hardware or USB). This is a beta release for comments and testing. It works (mostly) on Teensy 4 and 3.2. Tested on Mac. Highlights:
 
 * Set/remove breakpoints on most places in your code
 * Examine and change memory and registers
 * View call stack
 * Halt code at any time
+* Step with next/step working minimally, but not across functions.
 
-In the past, doing this has been very challenging because the debugging features of the Teensy are permanently disabled (see https://forum.pjrc.com/threads/26358-Software-Debugger-Stack and https://forum.pjrc.com/threads/61262-Sleeping-to-disable-C_DEBUGEN?p=242721#post242721). But I'm using a trick that doesn't involve the debugging features.
+In the past, debugging like this has been very challenging because the debugging features of the Teensy are permanently disabled (see https://forum.pjrc.com/threads/26358-Software-Debugger-Stack and https://forum.pjrc.com/threads/61262-Sleeping-to-disable-C_DEBUGEN?p=242721#post242721). But I'm using a trick that doesn't involve the debugging features.
 
 To emulate breakpoints the library first takes over the SVC interrupt. The Teensy 4 places most code in RAM so to activate a breakpoint it just replaces the original instructions with SVC calls. On Teensy 3.2, setting breakpoints uses the Cortex-M4's features to "patch" parts of flash by pointing it to RAM. 
 
 The library is enabled by including the header. On Macs, there is a python script that adds a menu option and configures Arduino to open GDB automatically after uploading your program. On other platforms, you run GDB manually and use `target remote` to connect to the serial port used by the GDB interface. However, the python script is simple and could easily be ported to Windows (or rewritten in C).
-
-```C
-#include "TeensyDebug.h"
-```
 
 To read more and try it out visit: http://github.com/ftrias/TeensyDebug
 

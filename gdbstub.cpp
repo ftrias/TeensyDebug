@@ -343,10 +343,10 @@ int process_G(const char *cmd, char *result) {
  * @return int 1 = valid; 0 = invalid
  */
 int isValidAddress(uint32_t addr) {
-  if (addr == 0) {
+  if (addr <= 0x20) {
     return 0;
   }
-  if (addr > 0xF0000000) {
+  else if (addr > 0xF0000000) {
     return 0;
   }
   return 1;
@@ -743,7 +743,7 @@ void processGDBinput() {
   }
   *pcmd = 0;
   
-  // Serial.print("got command:");Serial.println(cmd);
+  Serial.print("got command:");Serial.println(cmd);
   
   c = getDebugChar();
   checksum = hex(c) << 4;

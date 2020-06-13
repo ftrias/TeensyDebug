@@ -18,6 +18,22 @@
 #define HAS_FP_MAP
 #endif
 
+//
+// Need to know where RAM starts/stops so we know where
+// software breakpoints are possible
+//
+
+#ifdef __MK20DX256__
+#define RAM_START ((void*)0x1FFF8000)
+#define RAM_END   ((void*)0x2FFFFFFF)
+#endif
+
+#ifdef __IMXRT1062__
+#define RAM_START ((void*)0x00000020)
+#define RAM_END   ((void*)0x5FFFFFFF)
+#endif
+
+
 #if defined(GDB_DUAL_SERIAL) && ! defined(CDC2_DATA_INTERFACE)
 #error "You must use Dual Serial or Triple Serial to enable GDB on Dual Serial."
 #endif
