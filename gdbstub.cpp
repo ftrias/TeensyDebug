@@ -349,27 +349,29 @@ int process_g(const char *cmd, char *result) {
  * @return int 
  */
 int process_G(const char *cmd, char *result) {
-  // Serial.print("command G:");Serial.println(cmd);
-  cmd++;
-  debug.setRegister("r0", hex32ToInt(&cmd));
-  debug.setRegister("r1", hex32ToInt(&cmd));
-  debug.setRegister("r2", hex32ToInt(&cmd));
-  debug.setRegister("r3", hex32ToInt(&cmd));
-  debug.setRegister("r4", hex32ToInt(&cmd));
-  debug.setRegister("r5", hex32ToInt(&cmd));
-  debug.setRegister("r6", hex32ToInt(&cmd));
-  debug.setRegister("r7", hex32ToInt(&cmd));
-  debug.setRegister("r8", hex32ToInt(&cmd));
-  debug.setRegister("r9", hex32ToInt(&cmd));
-  debug.setRegister("r10", hex32ToInt(&cmd));
-  debug.setRegister("r11", hex32ToInt(&cmd));
-  debug.setRegister("r12", hex32ToInt(&cmd));
-  debug.setRegister("sp", hex32ToInt(&cmd));
-  debug.setRegister("lr", hex32ToInt(&cmd));
-  debug.setRegister("pc", hex32ToInt(&cmd));
-  debug.setRegister("cspr", hex32ToInt(&cmd));
-  strcpy(result, "OK");
+  strcpy(result, "E01");
   return 0;
+  // Not fully supported; enable when restore*() works
+  // cmd++;
+  // debug.setRegister("r0", hex32ToInt(&cmd));
+  // debug.setRegister("r1", hex32ToInt(&cmd));
+  // debug.setRegister("r2", hex32ToInt(&cmd));
+  // debug.setRegister("r3", hex32ToInt(&cmd));
+  // debug.setRegister("r4", hex32ToInt(&cmd));
+  // debug.setRegister("r5", hex32ToInt(&cmd));
+  // debug.setRegister("r6", hex32ToInt(&cmd));
+  // debug.setRegister("r7", hex32ToInt(&cmd));
+  // debug.setRegister("r8", hex32ToInt(&cmd));
+  // debug.setRegister("r9", hex32ToInt(&cmd));
+  // debug.setRegister("r10", hex32ToInt(&cmd));
+  // debug.setRegister("r11", hex32ToInt(&cmd));
+  // debug.setRegister("r12", hex32ToInt(&cmd));
+  // debug.setRegister("sp", hex32ToInt(&cmd));
+  // debug.setRegister("lr", hex32ToInt(&cmd));
+  // debug.setRegister("pc", hex32ToInt(&cmd));
+  // debug.setRegister("cspr", hex32ToInt(&cmd));
+  // strcpy(result, "OK");
+  // return 0;
 }
 
 /**
@@ -593,6 +595,7 @@ int process_monitor(char *cmd, char *result) {
     char *state = getNextWord(&place);
     int ipin = atoi(pin);
     int istate = atoi(state);
+    if (stricmp(state, "high")==0) istate = 1;
     pinMode(ipin, OUTPUT);
     digitalWrite(ipin, istate);
     strcpy(result, "OK"); 
@@ -626,6 +629,11 @@ int process_monitor(char *cmd, char *result) {
     char x[256];
     sprintf(x, "%d\n", v);
     mem2hex(result, (const char *)x, strlen(x));
+    return 0;   
+  }
+  else if (stricmp(word, "restart") == 0) {
+    CPU_RESTART;
+    strcpy(result, "");    
     return 0;   
   }
   strcpy(result, "");    

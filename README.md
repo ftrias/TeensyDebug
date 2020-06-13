@@ -57,7 +57,7 @@ void loop() {
 }
 ```
 
-Use on Mac
+Running on Mac
 -------------------------------------------
 
 This beta distribution has a custom uploader that only works on Macs. After installing it, when you press the Upload button, Arduino will compile and upload the program and then start GDB in a new window (which will connect to the Teensy). This simplifies deployment and eliminates having to search for the ELF file.
@@ -74,7 +74,7 @@ This new menu provides three options: "Use Dual Serial", "Take over Serial", and
 
 If you use this tool, you don't need the `#pragma` or `debug.begin()` statements.
 
-Manual use
+Running manually
 -------------------------------------------
 
 After compiling and uploading the program above, Teensy will have two serial ports. One is the standard one you can view on the Serial Monitor. The other is the one you will connect to. You need to figure out what the device name is (See menu `Tools / Port`). Let's assume it's `/dev/cu.usbmodem61684901`.
@@ -131,6 +131,19 @@ Program received signal SIGTRAP, Trace/breakpoint trap.
 (gdb) 
 ```
 
+Special GDB commands
+-------------------------------------------
+
+GDB provides a command called `monitor` for sending arbitrary text to the Teensy. Right now, this is used to implement pin IO operation, but could easily be expanded. For example, `monitor digitalWrite(13,1)` will flip pin 13 high, which turns on the LED.
+
+These are the commands implemented so far:
+
+* digitalRead(pin) -> returns 1 or 0
+* digitalWrite(pin, v1_or_0)
+* analogRead(pin)  -> returns analog input from pin
+* analogWrite(pin, value)
+* restart          -> reboot Teensy
+
 Internal workings
 ===========================================
 
@@ -159,9 +172,9 @@ Bugs
 
 1. Because stepping is implemented by putting a `SVC` in the next instruction, there are a number of bugs related to `step` and `next`. 
 
-2. `step` will not step into functions. Stepping won't work over a return. TeensyDebug traps `bx lr`, `pop {Rmmm, pc}`, `mov pc, Rm` and will actually step properly over these instruction if using gdb `stepi` command. However gdb `step` and `next` get confused and don't stop stepping once the function returns.
+2. `step` will not step into functions. Stepping won't always work over a return. TeensyDebug traps `bx lr`, `pop {Rmmm, pc}`, `mov pc, Rm` and will actually step properly over these instruction if using gdb `stepi` command. However gdb `step` and `next` get confused and don't stop stepping once the function returns.
 
-3. Stepping fails over branches. To fix, this will have to implement decoding of branches, which can be a bit complicated.
+3. Stepping may fail over branches. To fix, this will have to implement complete decoding of branches, which can be a bit complicated.
 
 Future considerations
 -------------------------------------------
@@ -169,6 +182,8 @@ Future considerations
 The `run.command` script should be ported to Windows and Linux.
 
 The serial connection can be anything that supports reading and writing ASCII in sequence. To start it's probably best to use a UART or USB Serial but in theory it could be USB Serial, CAN, network, Raw connection, etc.
+
+GDB can accept "file" commands from Teensy. Thus, teensy could send commands to open, read and write files on the host PC running GDB. This could be useful in many applications.
 
 Right now, GDB runs in a separate window. But in the future, GDB could be piped to Arduino's serial monitor. Both GDB's output and Teensy's serial output could be sent to the display. GDB can receive commands from the Send window. If, in addition to this.
 
