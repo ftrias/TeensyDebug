@@ -495,6 +495,12 @@ void *instructionBranch(void *p) {
     }
     return (void*)(save_registers.pc + offset);
   }
+  // BX
+  else if ((inst & 0xFF80) == 0x8E00) {
+    int reg = (inst >> 3) & 0b1111;
+    uint32_t addr = getRegisterNum(reg);
+    return (void*)(addr);
+  }
   // BL or BLX prefix
   else if ((inst & 0xF800) == 0xF000) {
     int offset1 = inst & 0x3F;
