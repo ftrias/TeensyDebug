@@ -38,14 +38,21 @@ void test_function() {
 }
 
 void setup() {
-  debug.begin();           // init debugger; not need if using Mac tool
-  // debug.begin(Serial1); // or use physical serial port
-  halt();                  // stop on startup
+  // Use the first serial port as you usually would
+  Serial.begin(19200);
+
+  // Debugger will use second USB Serial; this line is not need if using Mac tool
+  debug.begin(SerialUSB1);
+
+  // debug.begin(Serial1);   // or use physical serial port
+
+  halt();                    // stop on startup; if not, Teensy keeps running and you
+                             // have to set a breakpoint of Ctrl-C.
 }
 
 void loop() {
   test_function();
-  Serial.println(mark);
+  Serial.println(mark1);
   delay(1000);
 }
 ```
