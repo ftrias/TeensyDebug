@@ -14,7 +14,7 @@ For background see: https://forum.pjrc.com/threads/26358-Software-Debugger-Stack
 Stand-alone usage
 ===========================================
 
-The debugger can work stand-alone by debugging itself. Or in conjuction with GDB, the GNU Debugger.
+The debugger can work stand-alone by debugging itself or in conjuction with GDB, the GNU Debugger. Stand-alone is not particularly useful, but is presented for illustrative purposes.
 
 ```C
 #include "TeensyDebug.h"
@@ -89,7 +89,7 @@ void loop() {
 Use on Mac
 -------------------------------------------
 
-This beta distribution has a custom uploader that only works on Macs. Once installed, when you press the Upload button, Arduino will compile and upload the program and then start GDB in a new window (which will connect to the Teensy). This simplifies deployment and eliminates having to search for the ELF file.
+This beta distribution has a custom uploader that only works on Macs. After installing it, when you press the Upload button, Arduino will compile and upload the program and then start GDB in a new window (which will connect to the Teensy). This simplifies deployment and eliminates having to search for the ELF file.
 
 This tool requires Python. It is installed by running `run.command -i` located in the disribution direction. This script creates a new menu option in Arduino.
 
@@ -112,11 +112,15 @@ You also need to find the GDB executable that came with Teensyduino. On the Mac 
 
 Next, find the ELF file created. Arduino puts it in a temporary directory, but forunately, it is the same directory for the duration of Arduino. If you look at the end of the compile output, you should see multiple mentions of a file ending with ".elf". For example: `/var/folders/j1/8hkyfp_96zl_lgp19b19pbj80000gp/T/arduino_build_133762/breakpoint_test.ino.elf`.
 
-Running GDB yields:
+Run GDB:
 
 ```
 $ /Applications/Teensyduino.app/Contents/Java/hardware//tools/arm/bin/arm-none-eabi-gdb /var/folders/j1/8hkyfp_96zl_lgp19b19pbj80000gp/T/arduino_build_133762/breakpoint_test.ino.elf
+```
 
+Running GDB outputs:
+
+```
 GNU gdb (GNU Tools for ARM Embedded Processors) 7.10.1.20160923-cvs
 Copyright (C) 2015 Free Software Foundation, Inc.
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
@@ -175,8 +179,17 @@ This is how it works:
 
 7. It will take over the SVC, software and all fault interrupts. The software interrupt will be "chained" so it will process it's own interrupts and any other interrupts will be sent to the original interrupt handler. The SVC handler will trigger first. It will save the registers and then trigger the software interrupt. It does this because the software interrupt has a lower priority and thus Teensy features like USB will continue to work during a software interrupt, but not during an SVC interrupt which has a higher priority. The software interrupt is chained, meaning that if it is called outside of SVC, it will redirect to the previous software interrupt. This is helpful because the Aduio library uses the software interrupt.
 
+
 TODO / Future considerations
 ===========================================
+
+Bugs
+-------------------------------------------
+
+1. `step` and `next` don't work completely. `step` will not step into functions. Both won't work over a return. TeensyDebug traps `bx lr`, `pop {Rmmm, pc}`, `mov pc, Rm` and will actually step properly over these instruction if using gdb `stepi` command. However gdb `step` and `next` get confused and don't stop stepping once the function returns.
+
+Future considerations
+-------------------------------------------
 
 The `run.command` script should be ported to Windows and Linux.
 

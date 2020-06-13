@@ -26,6 +26,9 @@ https://www.embecosm.com/appnotes/ean4/embecosm-howto-rsp-server-ean4-issue-2.ht
 https://github.com/redox-os/binutils-gdb/blob/master/gdb/arm-tdep.c
 https://github.com/redox-os/binutils-gdb/blob/master/gdb/stubs/i386-stub.c
 https://sourceware.org/gdb/current/onlinedocs/gdb/Remote-Protocol.html#Remote-Protocol
+http://engold.ui.ac.ir/~nikmehr/Appendix_B2.pdf
+http://wcours.gel.ulaval.ca/GIF1001/docs/arm-instructionset.pdf
+https://web.eecs.umich.edu/~prabal/teaching/eecs373-f10/readings/ARMv7-M_ARM.pdf
 
 */
 
@@ -78,6 +81,9 @@ https://sourceware.org/gdb/current/onlinedocs/gdb/Remote-Protocol.html#Remote-Pr
 #define RAM_END   ((void*)0x5FFFFFFF)
 #endif
 
+#define ADDRESS_MASK  0xFFFFFFFE
+#define ADDRESS_MASK2 0xFFFFFFFC
+
 /***********************************************
  * 
  * Breakpoint setup
@@ -94,7 +100,7 @@ void *sw_breakpoint_addr[sw_breakpoint_count];
 uint16_t sw_breakpoint_code[sw_breakpoint_count];
 
 int swdebug_clearBreakpoint(void *p) {
-  uint32_t addr = ((uint32_t)p) & 0x1FFFFFFE;
+  uint32_t addr = ((uint32_t)p) & ADDRESS_MASK;
   for(int i=0; i<sw_breakpoint_count; i++) {
     if (sw_breakpoint_addr[i] == (void*)addr) {
       sw_breakpoint_addr[i] = 0;
@@ -108,7 +114,7 @@ int swdebug_clearBreakpoint(void *p) {
 }
 
 int swdebug_setBreakpoint(void *p) {
-  uint32_t addr = ((uint32_t)p) & 0x1FFFFFFE;
+  uint32_t addr = ((uint32_t)p) & ADDRESS_MASK;
   for(int i=0; i<sw_breakpoint_count; i++) {
     if (sw_breakpoint_addr[i] == 0) {
       sw_breakpoint_addr[i] = (void*)addr;
@@ -123,7 +129,7 @@ int swdebug_setBreakpoint(void *p) {
 }
 
 int swdebug_isBreakpoint(void *p) {
-  uint32_t addr = ((uint32_t)p) & 0x1FFFFFFE;
+  uint32_t addr = ((uint32_t)p) & ADDRESS_MASK;
   for(int i=0; i<sw_breakpoint_count; i++) {
     if (sw_breakpoint_addr[i] == (void*)addr) {
       return 1;
@@ -156,7 +162,7 @@ int hwdebug_setBreakpoint(void *p, int n) {
 //    Serial.print("break0 ");Serial.println(n);
   }
   else {
-    uint32_t pc = ((uint32_t)p) & 0x1FFFFFFE;
+    uint32_t pc = ((uint32_t)p) & ADDRESS_MASK;
     if (pc & 0b10) { // must be aligned, so go to next instruction
       // store the first instruction
       pc -= 2;
@@ -169,7 +175,7 @@ int hwdebug_setBreakpoint(void *p, int n) {
       remap_table[(n<<1) + 1] = ((uint16_t*)pc)[1];
     }
     
-    uint32_t addr = pc & 0x1FFFFFFC;
+    uint32_t addr = pc & ADDRESS_MASK2;
     FP_COMP(n) = addr | 1;
     breakpoints[n] = p;
 //    Serial.print("break ");Serial.print(n);Serial.print(" at ");Serial.print(pc, HEX);Serial.print("=");Serial.println(addr, HEX);
@@ -178,7 +184,7 @@ int hwdebug_setBreakpoint(void *p, int n) {
 }
 
 void hwdebug_disableBreakpoint(int n) {
-  FP_COMP(n) &= 0xFFFFFFFE;
+  FP_COMP(n) &= ADDRESS_MASK;
   // Serial.print("break ");Serial.print(n);Serial.println(" disable");
 }
 
@@ -369,9 +375,6 @@ void (*callback)() = NULL;
 // If debugactive=1, this is the follow on breakpoint.
 int debugactive = 0;
 
-// Saved address to restore original breakpoint
-uint32_t debugreset = 0;
-
 // Counter for debugging; counts number of breakpoint calls
 int debugcount = 0;
 
@@ -451,6 +454,47 @@ void print_registers() {
   Serial.print("sp=0x");Serial.println(save_registers.sp,HEX);
 }
 
+int instructionWidth(void *p) {
+  uint16_t prefix = (*(uint16_t*)p) & 0xF800;
+  if (prefix == 0xF000) return 2;
+  if (prefix == 0xE800) return 2;
+  if (prefix == 0xF000) return 2;
+  if (prefix == 0xF800) return 2;
+  return 1;
+}
+
+uint32_t getRegisterNum(int x) {
+  switch(x) {
+    case  0: return save_registers.r0;
+    case  1: return save_registers.r1;
+    case  2: return save_registers.r2;
+    case  3: return save_registers.r3;
+    case  4: return save_registers.r4;
+    case  5: return save_registers.r5;
+    case  6: return save_registers.r6;
+    case  7: return save_registers.r7;
+  }
+  return 0;
+}
+
+void *instructionReturn(void *p) {
+  uint16_t inst = *(uint16_t*)p;
+  uint16_t prefix = inst >> 8;
+  // mov pc, Rx
+  if (prefix == 0b01000110 && ((inst & 0b111) == 0b111)) {
+    uint32_t reg = getRegisterNum((inst >> 3) & 0b111);
+    return (void*)reg;
+  }
+  if (prefix == 0b10111101) { // pop {Rxxx, pc}
+    uint32_t *memory = (uint32_t*)save_registers.sp;
+    return (void*)memory[0]; 
+  }
+  if (inst == 0x4770) { // bx lr
+    return (void*)save_registers.lr; 
+  }
+  return 0;
+}
+
 /**
  * @brief Default debug callback
  * 
@@ -460,6 +504,11 @@ void debug_action() {
   print_registers();
   Serial.println("****");
 }
+
+// Saved address to restore original breakpoint
+uint32_t debugreset = 0;
+uint32_t temp_breakpoint = 0;
+// uint32_t caller_breakpoint = 0;
 
 /**
  * @brief Called by software interrupt to perform breakpoint manipulation
@@ -473,7 +522,7 @@ void debug_monitor() {
 
   // is this the first breakpoint or are we in a sequence?
   if (debugactive == 0) {
-    // Adjust original SP to before the interrupt call
+    // Adjust original SP to before the interrupt call - remove ISRs stack entries
     save_registers.sp += 20;
 
     // Serial.print("stop at ");Serial.println(breakaddr, HEX);
@@ -495,7 +544,10 @@ void debug_monitor() {
       // and at next break, set it back
       debug_clearBreakpoint((void*)breakaddr, 1);
       // break at next instruction
-      debug_setBreakpoint((void*)(save_registers.pc), 0);    
+      temp_breakpoint = save_registers.pc;
+      debug_setBreakpoint((void*)(temp_breakpoint), 0);
+      // caller_breakpoint = save_registers.lr;
+      // debug_setBreakpoint((void*)caller_breakpoint, 2); 
       // set to rerun current instruction
       stack->pc = breakaddr;
       // we need to process the next breakpoint differently
@@ -506,7 +558,11 @@ void debug_monitor() {
   }
   else {
     // clear the temporary breakpoint
-    debug_clearBreakpoint((void*)breakaddr, 0);
+    debug_clearBreakpoint((void*)temp_breakpoint, 0);
+    // if (caller_breakpoint) {
+    //   debug_clearBreakpoint((void*)caller_breakpoint, 2); 
+    // }
+
     // reset to re-run the instruction
     stack->pc = breakaddr;
 
@@ -526,7 +582,31 @@ void debug_monitor() {
       else {
         debug_action();
       }
-      debug_setBreakpoint((void*)save_registers.pc, 0);
+
+      void *ret = instructionReturn((void*)breakaddr);
+      // is this a return of some sort?
+      if (ret) {
+        temp_breakpoint = (uint32_t)ret;
+        // Serial.print("return to ");Serial.println(temp_breakpoint, HEX);
+      }
+      // is 32 bits wide?
+      else if (instructionWidth((void*)breakaddr) == 2) {
+        // Serial.print("32-bit instruction at ");Serial.println(breakaddr, HEX);
+        temp_breakpoint = save_registers.pc + 2;
+      }
+      else {
+        temp_breakpoint = save_registers.pc;
+      }
+      debug_setBreakpoint((void*)temp_breakpoint, 0);
+      // caller_breakpoint = save_registers.lr & ADDRESS_MASK;
+      // if (caller_breakpoint == breakaddr) {
+      //   // we just returned from a call, LR has not been restored, so this
+      //   // LR is invalid.
+      //   caller_breakpoint = 0;
+      // }
+      // else {
+      //   debug_setBreakpoint((void*)caller_breakpoint, 2); 
+      // }
     }
     else {
       // we're not stepping so reset mode
@@ -732,6 +812,7 @@ void hard_fault_debug(int n) {
   Serial.print("r12=");Serial.println(stack->r12, HEX);
   Serial.print("lr=0x");Serial.println(stack->lr, HEX);
   Serial.print("pc=0x");Serial.println(stack->pc, HEX);
+  Serial.println("****************");
   stack->pc += 2;
   debug_crash = 1;
 }
