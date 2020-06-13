@@ -41,21 +41,36 @@ def parseCommandLine():
   return ret
 
 
-def installGDB():
+def installGDB(instdir=None):
   print("Install GDB in Teensyduino")
 
-  DIR = "/Applications/"
   HERE = None
-  if os.path.exists(DIR + "Teensyduino.app"):
-    HERE = DIR + "Teensyduino.app/"
-  elif os.path.exists(DIR + "Arduino.app"):
-    HERE = DIR + "Arduino.app/"
-  else:
-    print("Teensyduino not found!")
-    return 0
 
-  TOOLS = HERE + "Contents/Java/hardware/tools/"
-  AVR = HERE + "Contents/Java/hardware/teensy/avr/"
+  if instdir == 1:
+    if os.name == 'nt':
+      HERE = "/Program Files (x86)/Arduino/"
+      TOOLS = HERE + "hardware/tools/"
+      AVR = HERE + "hardware/teensy/avr/"
+    elif sys.platform == 'darwin':
+      DIR = "/Applications/"
+      if os.path.exists(DIR + "Teensyduino.app"):
+        HERE = DIR + "Teensyduino.app/"
+        TOOLS = HERE + "Contents/Java/hardware/tools/"
+        AVR = HERE + "Contents/Java/hardware/teensy/avr/"
+      elif os.path.exists(DIR + "Arduino.app"):
+        HERE = DIR + "Arduino.app/"    
+        TOOLS = HERE + "Contents/Java/hardware/tools/"
+        AVR = HERE + "Contents/Java/hardware/teensy/avr/"
+      else:
+        HERE = "~/arduino/"
+        TOOLS = HERE + "hardware/tools/"
+        AVR = HERE + "hardware/teensy/avr/"
+  else:
+    DIR = instdir
+
+  if HERE is None:
+    print("Teensyduino not found in %s! Try using -i" % DIR)
+    return 0
 
   if os.path.exists(TOOLS + "run.command"):
     print("Already installed. Overwriting.")
@@ -92,7 +107,7 @@ tools.gdbtool.upload.pattern="{cmd.path}/run.command" "-gdb={build.gdb}" "-file=
 args = parseCommandLine()
 
 if args.has("i"): 
-  installGDB()
+  installGDB(args.i)
   exit(0)
 
 gpath=args.tools + "/arm/bin/"
