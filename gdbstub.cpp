@@ -81,10 +81,9 @@ void devInit(Stream *device = NULL) {
   }
 }
 
-
-// Signal codes for ARM faults
+// Signal codes for ARM faults; corresponds to debug_id
 const char *signal_text[] = {
-  "S05", "S02", "S10", "S11", "S11", "S10", "S04"
+  "S05", "S02", "S06", "S0B", "S07", "S07", "S04"
 };
 
 /**
@@ -349,9 +348,9 @@ int process_g(const char *cmd, char *result) {
  * @return int 
  */
 int process_G(const char *cmd, char *result) {
+  // Not fully supported; enable when restore*() works
   strcpy(result, "E01");
   return 0;
-  // Not fully supported; enable when restore*() works
   // cmd++;
   // debug.setRegister("r0", hex32ToInt(&cmd));
   // debug.setRegister("r1", hex32ToInt(&cmd));
@@ -641,7 +640,8 @@ int process_monitor(char *cmd, char *result) {
 }
 
 /**
- * @brief Process 'q' query command. For now report back only PacketSize.
+ * @brief Process 'q' query command. For now report back PacketSize.
+ * Handle 'monitor' commands.
  * 
  * @param cmd Original command
  * @param result Results or ""

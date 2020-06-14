@@ -1,0 +1,40 @@
+menu.gdb=GDB
+
+teensy41.menu.gdb.serial=Take over Serial
+teensy41.menu.gdb.serial.build.gdb=2
+teensy41.menu.gdb.serial.build.flags.optimize=-Og -g -DGDB_TAKE_OVER_SERIAL
+teensy41.menu.gdb.dual=Use dual Serial
+teensy41.menu.gdb.dual.build.gdb=1
+teensy41.menu.gdb.dual.build.flags.optimize=-Og -g -DGDB_DUAL_SERIAL
+teensy41.menu.gdb.manual=Manual device selection
+teensy41.menu.gdb.manual.build.gdb=3
+teensy41.menu.gdb.manual.build.flags.optimize=-Og -g -DGDB_MANUAL_SELECTION
+teensy41.menu.gdb.off=Off
+teensy41.menu.gdb.off.build.gdb=0
+teensy41.upload.tool=gdbtool
+
+teensy40.menu.gdb.serial=Take over Serial
+teensy40.menu.gdb.serial.build.gdb=2
+teensy40.menu.gdb.serial.build.flags.optimize=-Og -g -DGDB_TAKE_OVER_SERIAL
+teensy40.menu.gdb.dual=Use dual Serial
+teensy40.menu.gdb.dual.build.gdb=1
+teensy40.menu.gdb.dual.build.flags.optimize=-Og -g -DGDB_DUAL_SERIAL
+teensy40.menu.gdb.manual=Manual device selection
+teensy40.menu.gdb.manual.build.gdb=3
+teensy40.menu.gdb.manual.build.flags.optimize=-Og -g -DGDB_MANUAL_SELECTION
+teensy40.menu.gdb.off=Off
+teensy40.menu.gdb.off.build.gdb=0
+teensy40.upload.tool=gdbtool
+
+teensy32.menu.gdb.serial=Take over Serial
+teensy32.menu.gdb.serial.build.gdb=2
+teensy32.menu.gdb.serial.build.flags.optimize=-Og -g -DGDB_TAKE_OVER_SERIAL
+teensy32.menu.gdb.dual=Use dual Serial
+teensy32.menu.gdb.dual.build.gdb=1
+teensy32.menu.gdb.dual.build.flags.optimize=-Og -g -DGDB_DUAL_SERIAL
+teensy32.menu.gdb.manual=Manual device selection
+teensy32.menu.gdb.manual.build.gdb=3
+teensy32.menu.gdb.manual.build.flags.optimize=-Og -g -DGDB_MANUAL_SELECTION
+teensy32.menu.gdb.off=Off
+teensy32.menu.gdb.off.build.gdb=0
+teensy32.upload.tool=gdbtool

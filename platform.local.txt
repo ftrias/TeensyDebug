@@ -1,0 +1,6 @@
+
+## Debugger
+tools.gdbtool.cmd.path={runtime.hardware.path}/../tools
+tools.gdbtool.upload.params.quiet=
+tools.gdbtool.upload.params.verbose=-verbose
+tools.gdbtool.upload.pattern="{cmd.path}/run.command" "-gdb={build.gdb}" "-file={build.project_name}" "-path={build.path}" "-tools={cmd.path}" "-board={build.board}" -reboot "-port={serial.port}" "-portlabel={serial.port.label}" "-portprotocol={serial.port.protocol}"

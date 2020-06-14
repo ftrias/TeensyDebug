@@ -1,8 +1,18 @@
 #!/usr/bin/env python
 
 #
-# Program Teensy, wait for it to come back online and start GDB
+# Program Teensy, wait for it to come back online and start GDB.
+# This program will:
+#   1. Run teensy_post_compile to upload program
+#   2. Run teensy_ports to figure out what ports to use
+#   3. Run GDB in new window pointing to right port
 #
+# Use with "-i" to install the program as the default uploader.
+# This will:
+#   1. copy this script to the "tools" directory.
+#   2. create a boards.local.txt and platform.local.txt file
+#      these files will redirect uploads to this script.
+#    
 
 import subprocess
 import sys
@@ -76,7 +86,9 @@ def installGDB(instdir=None):
     print("Already installed. Overwriting.")
 
   shutil.copy("run.command", TOOLS)
+  createFiles(AVR)
 
+def createFiles(AVR):
   with open(AVR + "boards.local.txt", "w+") as f:
     f.write("menu.gdb=GDB\n")
     for ver in ('41','40','32'):
@@ -108,6 +120,10 @@ args = parseCommandLine()
 
 if args.has("i"): 
   installGDB(args.i)
+  exit(0)
+
+if args.has("c"): 
+  createFiles("./")
   exit(0)
 
 gpath=args.tools + "/arm/bin/"
