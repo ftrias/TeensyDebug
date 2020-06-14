@@ -14,11 +14,12 @@
 #      These files will redirect uploads to this script.
 #    
 
+from __future__ import print_function
+
 import subprocess
 import sys
 import os
 import os.path
-# import argparse
 import time
 import sys
 import re
@@ -215,14 +216,17 @@ def runGDB(arguments):
   ELF="%s/%s.elf" % (args.path, args.file)
 
   # build commandline for programming Teensy
-  #argline = '" "'.join(arguments)
   post = convertPathSlashes('%s/teensy_post_compile' % args.tools)
-  #cmd1='"%s" "%s"' % (post, argline)
-  #x = os.system(cmd1)
-  x = subprocess.run([post] + arguments)
+  if os.name == 'nt':
+    x = subprocess.run([post] + arguments)
+    x = x.returncode
+  else:
+    argline = '" "'.join(arguments)
+    cmd1='"%s" "%s"' % (post, argline)
+    x = os.system(cmd1)
 
   # something went wrong with programming
-  if x.returncode != 0:
+  if x != 0:
     exit(x)
 
   # if gdb option is off or missing, don't run gdb so just end here
