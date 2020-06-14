@@ -62,17 +62,19 @@ Running on Mac
 
 This beta distribution has a custom uploader that only works on Macs. After installing it, when you press the Upload button, Arduino will compile and upload the program and then start GDB in a new window (which will connect to the Teensy). This simplifies deployment and eliminates having to search for the ELF file.
 
-This tool requires Python. It is installed by running `run.command -i` located in the disribution direction. This script creates a new menu option in Arduino.
+This tool requires Python. It is installed by running `run.command -i` located in the disribution direction. This script creates a new menu option in Arduino and copies itself to the tools directory. It makes no changes to any source code.
 
-This new menu provides three options: "Use Dual Serial", "Take over Serial", and "Off".
+The new menu provides three options: "Use Dual Serial", "Take over Serial", and "Off".
 
 * Use Dual Serial: If you compile Dual Serial support, the second USB Serial will be used to communicate with GDB. All optimizations will be turned off.
 
-* Take over Serial: GDB will use the USB Serial to communicate with the Teensy. The library will redefine Serial so that GDB will print your data. All optimizations will be turned off.
+* Take over Serial: GDB will use the USB Serial to communicate with the Teensy. The library will redefine Serial so that any calls to Serial will cause GDB to print your data. All optimizations will be turned off.
 
 * Off: GDB is not used.
 
 If you use this tool, you don't need the `#pragma` or `debug.begin()` statements.
+
+The tool is written in Python can can easily be ported to other platforms.
 
 Running manually
 -------------------------------------------

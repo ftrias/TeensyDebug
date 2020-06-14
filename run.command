@@ -3,15 +3,15 @@
 #
 # Program Teensy, wait for it to come back online and start GDB.
 # This program will:
-#   1. Run teensy_post_compile to upload program
-#   2. Run teensy_ports to figure out what ports to use
-#   3. Run GDB in new window pointing to right port
+#   1. Run teensy_post_compile to upload program.
+#   2. Run teensy_ports to figure out what ports to use.
+#   3. Run GDB in new window pointing to right port.
 #
 # Use with "-i" to install the program as the default uploader.
 # This will:
 #   1. copy this script to the "tools" directory.
-#   2. create a boards.local.txt and platform.local.txt file
-#      these files will redirect uploads to this script.
+#   2. create a boards.local.txt and platform.local.txt file.
+#      These files will redirect uploads to this script.
 #    
 
 import subprocess
