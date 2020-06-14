@@ -41,13 +41,13 @@ void setup() {
   // Use the first serial port as you usually would
   Serial.begin(19200);
 
-  // Debugger will use second USB Serial; this line is not need if using Mac tool
+  // Debugger will use second USB Serial; this line is not need if using menu option
   debug.begin(SerialUSB1);
 
   // debug.begin(Serial1);   // or use physical serial port
 
   halt();                    // stop on startup; if not, Teensy keeps running and you
-                             // have to set a breakpoint of Ctrl-C.
+                             // have to set a breakpoint or use Ctrl-C.
 }
 
 void loop() {
@@ -57,12 +57,22 @@ void loop() {
 }
 ```
 
-Running on Mac
+Installing on Mac
 -------------------------------------------
 
-This beta distribution has a custom uploader that only works on Macs. After installing it, when you press the Upload button, Arduino will compile and upload the program and then start GDB in a new window (which will connect to the Teensy). This simplifies deployment and eliminates having to search for the ELF file.
+This tool requires Python, which is installed by default on Macs. It is installed by running `install.command` located in the disribution direction. This script creates a new menu option in Arduino and copies itself to the tools directory. It makes no changes to any source code.
 
-This tool requires Python. It is installed by running `run.command -i` located in the disribution direction. This script creates a new menu option in Arduino and copies itself to the tools directory. It makes no changes to any source code.
+Installing on Windows
+-------------------------------------------
+
+This tool is installed by running `install.bat` as Administrator. Do this by right-clicking on the file and selecting `Run as administraor`. This script creates a new menu option in Arduino and copies itself to the tools directory.
+
+Installing on Linux
+-------------------------------------------
+Run `install.sh` to install. It assumes your Arduino is installed in `~/arduino`. If this is not, pass the direction with the `-i=path` option.
+
+New menu options
+-------------------------------------------
 
 The new menu provides three options: "Use Dual Serial", "Take over Serial", and "Off".
 
@@ -73,8 +83,6 @@ The new menu provides three options: "Use Dual Serial", "Take over Serial", and 
 * Off: GDB is not used.
 
 If you use this tool, you don't need the `#pragma` or `debug.begin()` statements.
-
-The tool is written in Python can can easily be ported to other platforms.
 
 Running manually
 -------------------------------------------
@@ -165,6 +173,7 @@ This is how it works:
 
 7. It will take over the SVC, software and all fault interrupts. The software interrupt will be "chained" so it will process it's own interrupts and any other interrupts will be sent to the original interrupt handler. The SVC handler will trigger first. It will save the registers and then trigger the software interrupt. It does this because the software interrupt has a lower priority and thus Teensy features like USB will continue to work during a software interrupt, but not during an SVC interrupt which has a higher priority. The software interrupt is chained, meaning that if it is called outside of SVC, it will redirect to the previous software interrupt. This is helpful because the Aduio library uses the software interrupt.
 
+After a sketch is compiled, the `teensy_debug` tool is called to upload the sketch. First, it calls Teensyduino's `teensy_post_compile` to initiate the upload. It waits for that to complete and for Teensy to restart. Then it will find the right serial port and run `gdb` in a separate window. On Mac and Linux, `teensy_debug` is a Python script. On Window, the script has been compiled to an EXE with `pyinstaller`.
 
 TODO / Future considerations
 ===========================================
@@ -174,9 +183,9 @@ Bugs
 
 1. Because stepping is implemented by putting a `SVC` in the next instruction, there are a number of bugs related to `step` and `next`. 
 
-2. `step` will not step into functions. Stepping won't always work over a return. TeensyDebug traps `bx lr`, `pop {Rmmm, pc}`, `mov pc, Rm` and will actually step properly over these instruction if using gdb `stepi` command. However gdb `step` and `next` get confused and don't stop stepping once the function returns.
+2. `step` may not not step into functions. Stepping won't always work over a return. TeensyDebug traps `bx lr`, `pop {Rmmm, pc}`, `mov pc, Rm` and will usually step properly over these instruction if using gdb `stepi` command. Branch instructions are also interpreted properly most of the time. However gdb `step` and `next` may occasionally get confused and not stop stepping.
 
-3. Stepping may fail over branches. To fix, this will have to implement complete decoding of branches, which can be a bit complicated.
+3. Port `teensy_debug` to C. Or better yet, integrate it with `teensy_post_compile`.
 
 Future considerations
 -------------------------------------------
