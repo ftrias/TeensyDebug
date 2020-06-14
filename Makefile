@@ -4,3 +4,6 @@ all: TeensyDebug.zip
 
 TeensyDebug.zip: $(DIST)
 	zip -r TeensyDebug.zip $(DIST)
+
+teensy_debug.exe:
+	build.bat

@@ -85,7 +85,7 @@ def installGDB():
     DIR = args.i
   else:
     if os.name == 'nt':
-      DIR = "/Program Files (x86)/Arduino/"
+      DIR = "C:/Program Files (x86)/Arduino/"
       EXT = "exe"
     elif sys.platform == 'darwin':
       APPDIR = "/Applications/"
@@ -129,14 +129,23 @@ def installGDB():
   createFiles(AVR, EXT)
 
   home = expanduser("~")
-  dest = home + "/Arduino/libraries/TeensyDebug/"
+  dest = home + "/Documents/Arduino/libraries/TeensyDebug"
+
+  print("Copy source to", dest)
+
   if not os.path.exists(dest):
-    print("not", dest)
     os.makedirs(dest)
 
   for i in ("README.md", "library.properties", "keywords.txt", "license.txt", "TeensyDebug.h", "TeensyDebug.cpp", "gdbstub.cpp"):
     shutil.copy(i, dest)
-  shutil.copytree('examples', dest + "examples")
+
+  try:
+    shutil.rmtree(dest + '/examples')
+  except:
+    pass
+  shutil.copytree('examples', dest + '/examples')
+
+  print("\nInstallation complete\n")
 
 def createFiles(AVR, EXT):
   with open(AVR + "boards.local.txt", "w+") as f:
@@ -146,16 +155,22 @@ def createFiles(AVR, EXT):
 teensy%s.menu.gdb.serial=Take over Serial
 teensy%s.menu.gdb.serial.build.gdb=2
 teensy%s.menu.gdb.serial.build.flags.optimize=-Og -g -DGDB_TAKE_OVER_SERIAL
-teensy%s.menu.gdb.dual=Use dual Serial
+teensy%s.menu.gdb.serial.upload.tool=gdbtool
+teensy%s.menu.gdb.dual=Use Dual Serial
 teensy%s.menu.gdb.dual.build.gdb=1
 teensy%s.menu.gdb.dual.build.flags.optimize=-Og -g -DGDB_DUAL_SERIAL
+teensy%s.menu.gdb.dual.upload.tool=gdbtool
 teensy%s.menu.gdb.manual=Manual device selection
 teensy%s.menu.gdb.manual.build.gdb=3
 teensy%s.menu.gdb.manual.build.flags.optimize=-Og -g -DGDB_MANUAL_SELECTION
+teensy%s.menu.gdb.manual.upload.tool=gdbtool
+teensy%s.menu.gdb.compile=Just compile
+teensy%s.menu.gdb.compile.build.gdb=0
+teensy%s.menu.gdb.compile.build.flags.optimize=-Og -g -DGDB_MANUAL_SELECTION
+teensy%s.menu.gdb.compile.upload.tool=gdbtool
 teensy%s.menu.gdb.off=Off
 teensy%s.menu.gdb.off.build.gdb=0
-teensy%s.upload.tool=gdbtool
-""" % (ver,ver,ver,ver,ver,ver,ver,ver,ver,ver,ver,ver))
+""".replace("%s", ver))
 
   with open(AVR + "platform.local.txt", "w+") as f:
     f.write("""
@@ -243,9 +258,10 @@ def runGDB(arguments):
 
   # if gdb option is off or missing, don't run gdb so just end here
   if args.has("gdb"):
-    if args.gdb == "0": exit(0)
+    if args.gdb == "0": 
+      return
   else:
-    exit(0)
+    return
 
   usedev = getPort()
 
@@ -291,8 +307,9 @@ def runOnWindows(command):
   f.write("\n")
   f.close()
   # run in separate terminal
-  print("batch file is %s" % f.name)
+  # print("batch file is %s" % f.name)
   os.system("start %s" % f.name)
+  # os.system("start %s" % command)
   # subprocess.run(["cmd.exe", "/k", f.name])
 
 def runCommand(command):

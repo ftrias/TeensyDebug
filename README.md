@@ -60,18 +60,16 @@ The `#pragma` will eliminate optimizations. If you don't use it, the compiler wi
 Installing on Mac
 -------------------------------------------
 
-This tool requires Python, which is installed by default on Macs. Install by running `install-mac.command` located in the disribution direction. This script creates a new menu option in Arduino and copies itself to the tools directory. It makes no changes to any source code.
-
-Copy the entire directoy to your local Arduino directory, which is usually `~/Documents/Arduino/libraries`.
+This tool requires Python, which is installed by default on Macs. Install by running `install-mac.command` located in the disribution direction. This script creates a new menu option in Arduino and copies itself to the tools directory. Then it will create a local library with the source files. It makes no changes to existing source code.
 
 Installing on Windows
 -------------------------------------------
 
-This tool is installed by running `install-windows.bat` as Administrator. Do this by right-clicking on the file and selecting `Run as administraor`. This script creates a new menu option in Arduino and copies itself to the tools directory.
+This tool is installed by running `teensy_debug.exe` as Administrator. Do this by right-clicking on the file and selecting `Run as administraor`. This program creates a new menu option in Arduino and copies itself to the tools directory. Then it will create a local library with the source files.
 
 Installing on Linux
 -------------------------------------------
-Run `install-linux.sh` to install. It assumes your Arduino is installed in `~/arduino`. If this is not, pass the direction with the `-i=path` option.
+Run `install-linux.sh` to install. It assumes your Arduino is installed in `~/arduino`. If this is not, pass the direction with the `-i=path` option. It will create a local library with the source files.
 
 New menu options
 -------------------------------------------
@@ -81,6 +79,10 @@ The new menu provides three options: "Use Dual Serial", "Take over Serial", and 
 * Use Dual Serial: If you compile Dual Serial support (or at least two serials), the second USB Serial will be used to communicate with GDB. All optimizations will be turned off.
 
 * Take over Serial: GDB will use the USB Serial to communicate with the Teensy. The library will redefine Serial so that any calls to Serial will cause GDB to print your data. All optimizations will be turned off.
+
+* Manual Serial: Compile with GDB and start it, but don't connect automatically.
+
+* Just compile: Compile with GDB but don't start GDB.
 
 * Off: GDB is not used.
 
