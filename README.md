@@ -11,7 +11,7 @@ This module provides breakpoint support for the Teensy 3/4 platform from PJRC wi
 
 For background see: https://forum.pjrc.com/threads/26358-Software-Debugger-Stack
 
-GDB usage
+GDB background
 ===========================================
 
 GDB Remote Serial Protocol stubs provide a simple interface between GDB and a remote target via a serial interface, such as a socket, pipe, UART, USB, etc. It works like this:
@@ -20,9 +20,7 @@ GDB Remote Serial Protocol stubs provide a simple interface between GDB and a re
 [PC running GDB] <--(serial)--> [Teensy GDB stub]
 ```
 
-Since Teensduino comes with a GDB executable for ARM processors, there is no need to install it.
-
-To start, I recommend you configure Teensy for Dual Serial support. One serial will be used as before with the Serial Monitor. The second serial will be used by GDB. You can compile with Dual serial ports using the menu `Tools / USB Type`. Alternatively you can just use a physical serial port by passing it in, as `debug.begin(Serial1)`.
+Since Teensduino comes with a GDB executable for ARM processors, there is no need to install it. Run the installer (see below) to create a new menu in Arduino that will enable GDB.
 
 Sample code and usage
 -------------------------------------------
@@ -31,10 +29,10 @@ Sample code and usage
 #include "TeensyDebug.h"
 #pragma GCC optimize ("O0")
 
-int mark1 = 0;
+int mark = 0;
 
 void test_function() {
-  mark1++;
+  mark++;
 }
 
 void setup() {
@@ -52,15 +50,17 @@ void setup() {
 
 void loop() {
   test_function();
-  Serial.println(mark1);
+  Serial.println(mark);
   delay(1000);
 }
 ```
 
+The `#pragma` will eliminate optimizations. If you don't use it, the compiler will inline `test_function()` and remove the symbol. It may also eliminate `mark` after realizing it serves no purpose.
+
 Installing on Mac
 -------------------------------------------
 
-This tool requires Python, which is installed by default on Macs. It is installed by running `install.command` located in the disribution direction. This script creates a new menu option in Arduino and copies itself to the tools directory. It makes no changes to any source code.
+This tool requires Python, which is installed by default on Macs. Install by running `install.command` located in the disribution direction. This script creates a new menu option in Arduino and copies itself to the tools directory. It makes no changes to any source code.
 
 Installing on Windows
 -------------------------------------------
@@ -76,24 +76,24 @@ New menu options
 
 The new menu provides three options: "Use Dual Serial", "Take over Serial", and "Off".
 
-* Use Dual Serial: If you compile Dual Serial support, the second USB Serial will be used to communicate with GDB. All optimizations will be turned off.
+* Use Dual Serial: If you compile Dual Serial support (or at least two serials), the second USB Serial will be used to communicate with GDB. All optimizations will be turned off.
 
 * Take over Serial: GDB will use the USB Serial to communicate with the Teensy. The library will redefine Serial so that any calls to Serial will cause GDB to print your data. All optimizations will be turned off.
 
 * Off: GDB is not used.
 
-If you use this tool, you don't need the `#pragma` or `debug.begin()` statements.
-
-Running manually
+Running GDB manually
 -------------------------------------------
 
-After compiling and uploading the program above, Teensy will have two serial ports. One is the standard one you can view on the Serial Monitor. The other is the one you will connect to. You need to figure out what the device name is (See menu `Tools / Port`). Let's assume it's `/dev/cu.usbmodem61684901`.
+If the menu option doesn't work for you, or you are using a physical serial port, you can run GDB manually.
+
+After compiling and uploading the program in the example above, Teensy will have two serial ports. One is the standard one you can view on the Serial Monitor. The other is the one you will connect to. You need to figure out what the device name is (See menu `Tools / Port`). Let's assume it's `/dev/cu.usbmodem61684901`.
 
 You also need to find the GDB executable that came with Teensyduino. On the Mac it is located in `/Applications/Teensyduino.app/Contents/Java/hardware//tools/arm/bin/arm-none-eabi-gdb`.
 
-Next, find the ELF file created. Arduino puts it in a temporary directory, but forunately, it is the same directory for the duration of Arduino. If you look at the end of the compile output, you should see multiple mentions of a file ending with ".elf". For example: `/var/folders/j1/8hkyfp_96zl_lgp19b19pbj80000gp/T/arduino_build_133762/breakpoint_test.ino.elf`.
+Next, find the ELF file created. Arduino puts it in a temporary directory. Fortunately, it is the same directory for the duration of Arduino. If you look at the end of the compile output, you should see multiple mentions of a file ending with `.elf`. For example: `/var/folders/j1/8hkyfp_96zl_lgp19b19pbj80000gp/T/arduino_build_133762/breakpoint_test.ino.elf`.
 
-Run GDB:
+Run GDB followed by the ELF file location:
 
 ```
 $ /Applications/Teensyduino.app/Contents/Java/hardware//tools/arm/bin/arm-none-eabi-gdb /var/folders/j1/8hkyfp_96zl_lgp19b19pbj80000gp/T/arduino_build_133762/breakpoint_test.ino.elf
@@ -119,7 +119,7 @@ Type "apropos word" to search for commands related to "word".
 (gdb)
 ```
 
-At the prompt type the `target remote` command using the correct port:
+At the prompt use the `target remote` command using the correct port:
 
 ```
 target remote /dev/cu.usbmodem61684903
@@ -149,7 +149,7 @@ GDB provides a command called `monitor` for sending arbitrary text to the Teensy
 These are the commands implemented so far:
 
 * digitalRead(pin) -> returns 1 or 0
-* digitalWrite(pin, v1_or_0)
+* digitalWrite(pin, 1_or_0)
 * analogRead(pin)  -> returns analog input from pin
 * analogWrite(pin, value)
 * restart          -> reboot Teensy
