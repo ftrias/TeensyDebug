@@ -69,18 +69,24 @@ This tool is installed by running `teensy_debug.exe` as Administrator. Do this b
 
 Installing on Linux
 -------------------------------------------
+
 Run `install-linux.sh` to install. It assumes your Arduino is installed in `~/arduino`. If this is not, pass the direction with the `-i=path` option. It will create a local library with the source files.
+
+Installing from ZIP file
+-------------------------------------------
+
+If you install this library as a ZIP file from the Arduino menu, it will not install the additional menu options for running GDB after uploads and you will have to follow the "Running GDB manually" instructions a few sections below.
 
 New menu options
 -------------------------------------------
 
-The new menu provides three options: "Use Dual Serial", "Take over Serial", and "Off".
+The new menu provides these options:
 
 * Use Dual Serial: If you compile Dual Serial support (or at least two serials), the second USB Serial will be used to communicate with GDB. All optimizations will be turned off.
 
-* Take over Serial: GDB will use the USB Serial to communicate with the Teensy. The library will redefine Serial so that any calls to Serial will cause GDB to print your data. All optimizations will be turned off.
+* Take over Serial: GDB will use the USB Serial to communicate with the Teensy. The library will redefine Serial so that any calls to Serial in your sketch will cause GDB to print your data. All optimizations will be turned off.
 
-* Manual Serial: Compile with GDB and start it, but don't connect automatically.
+* Manual Serial: Compile with GDB and start it, but don't connect automatically so you can choose the serial device to use.
 
 * Just compile: Compile with GDB but don't start GDB.
 
@@ -91,7 +97,7 @@ Running GDB manually
 
 If the menu option doesn't work for you, or you are using a physical serial port, you can run GDB manually.
 
-After compiling and uploading the program in the example above, Teensy will have two serial ports. One is the standard one you can view on the Serial Monitor. The other is the one you will connect to. You need to figure out what the device name is (See menu `Tools / Port`). Let's assume it's `/dev/cu.usbmodem61684901`.
+For example, after compiling and uploading the program in the example above, Teensy will have two serial ports. One is the standard one you can view on the Serial Monitor. The other is the one you will connect to. You need to figure out what the device name is (See menu `Tools / Port`). Let's assume it's `/dev/cu.usbmodem61684901`.
 
 You also need to find the GDB executable that came with Teensyduino. On the Mac it is located in `/Applications/Teensyduino.app/Contents/Java/hardware//tools/arm/bin/arm-none-eabi-gdb`.
 
@@ -103,7 +109,7 @@ Run GDB followed by the ELF file location:
 $ /Applications/Teensyduino.app/Contents/Java/hardware//tools/arm/bin/arm-none-eabi-gdb /var/folders/j1/8hkyfp_96zl_lgp19b19pbj80000gp/T/arduino_build_133762/breakpoint_test.ino.elf
 ```
 
-Running GDB outputs:
+GDB outputs:
 
 ```
 GNU gdb (GNU Tools for ARM Embedded Processors) 7.10.1.20160923-cvs
@@ -165,7 +171,7 @@ This is how it works:
 
 1. By using a timer, the Teensy listens to GDB commands from a serial device.
 
-2. When it gets commands like memory queries, memory sets and things that don't require halting, it responds with the data requested.
+2. When it gets commands like memory queries, memory sets and things that don't require halting, it responds with the data requested. In this way, you can inspect a running program.
 
 3. When it receives a halt command, Teensy will just go into a loop querying for commands and responding. It won't return to it's caller until GDB tells it to do so. Thus, execution of the main thread will stop but interrupts will continue. Because interrupts continue, on the plus side, the Teensy won't die and USB and other features will stay active. On the other hand, sometimes you just the want the system to halt. Perhaps there could be an option to halt all interrupts as well or change the priority. Keeping interrupts going is probably easier for beginners and models what desktop apps do (when an apps stops, the OS keeps going).
 
@@ -173,7 +179,7 @@ This is how it works:
 
 5. If a function is placed in RAM, you can dynamically insert/remove SVC calls in the code, in the same way that standard debuggers work. Teensy 4 places all user code in RAM. On Teensy 3, you can put a function by specifying FASTRAM. Again, breakpoints like this can be set and enabled/disabled by GDB.
 
-6. On the Teensy 3.2, we could as well use the Flash Patch Block to set and remove SVC calls using patching. Thus, you can dynamically set breakpoints in flash. Teensy 4 doesn't support this, but since it places code in RAM, that's probably not a big deal.
+6. On the Teensy 3.2, we use the Flash Patch Block to set and remove SVC calls using patching. Thus, you can dynamically set breakpoints in flash. Teensy 4 doesn't support this, but since it places code in RAM, that's probably not a big deal.
 
 7. It will take over the SVC, software and all fault interrupts. The software interrupt will be "chained" so it will process it's own interrupts and any other interrupts will be sent to the original interrupt handler. The SVC handler will trigger first. It will save the registers and then trigger the software interrupt. It does this because the software interrupt has a lower priority and thus Teensy features like USB will continue to work during a software interrupt, but not during an SVC interrupt which has a higher priority. The software interrupt is chained, meaning that if it is called outside of SVC, it will redirect to the previous software interrupt. This is helpful because the Aduio library uses the software interrupt.
 
@@ -187,7 +193,7 @@ Bugs
 
 1. Because stepping is implemented by putting a `SVC` in the next instruction, there are a number of bugs related to `step` and `next`. 
 
-2. `step` may not not step into functions. Stepping won't always work over a return. TeensyDebug traps `bx lr`, `pop {Rmmm, pc}`, `mov pc, Rm` and will usually step properly over these instruction if using gdb `stepi` command. Branch instructions are also interpreted properly most of the time. However gdb `step` and `next` may occasionally get confused and not stop stepping.
+2. `step` may not always step into functions. Stepping won't always work over a return. TeensyDebug traps `bx lr`, `pop {Rmmm, pc}`, `mov pc, Rm` and will usually step properly over these instruction if using gdb `stepi` command. Branch instructions are also interpreted properly most of the time. However gdb `step` and `next` may occasionally get confused and stop stepping.
 
 3. Port `teensy_debug` to C. Or better yet, integrate it with `teensy_post_compile`.
 
@@ -200,7 +206,7 @@ The serial connection can be anything that supports reading and writing ASCII in
 
 GDB can accept "file" commands from Teensy. Thus, teensy could send commands to open, read and write files on the host PC running GDB. This could be useful in many applications.
 
-Right now, GDB runs in a separate window. But in the future, GDB could be piped to Arduino's serial monitor. Both GDB's output and Teensy's serial output could be sent to the display. GDB can receive commands from the Send window. If, in addition to this.
+Right now, GDB runs in a separate window. But in the future, GDB could be piped to Arduino's serial monitor. Both GDB's output and Teensy's serial output could be sent to the display. GDB can receive commands from the Send window.
 
 ```
 [Arduino]      [           ser1] <-- [Teensy & GDB stub]
