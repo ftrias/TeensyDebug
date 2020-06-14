@@ -60,16 +60,18 @@ The `#pragma` will eliminate optimizations. If you don't use it, the compiler wi
 Installing on Mac
 -------------------------------------------
 
-This tool requires Python, which is installed by default on Macs. Install by running `install.command` located in the disribution direction. This script creates a new menu option in Arduino and copies itself to the tools directory. It makes no changes to any source code.
+This tool requires Python, which is installed by default on Macs. Install by running `install-mac.command` located in the disribution direction. This script creates a new menu option in Arduino and copies itself to the tools directory. It makes no changes to any source code.
+
+Copy the entire directoy to your local Arduino directory, which is usually `~/Documents/Arduino/libraries`.
 
 Installing on Windows
 -------------------------------------------
 
-This tool is installed by running `install.bat` as Administrator. Do this by right-clicking on the file and selecting `Run as administraor`. This script creates a new menu option in Arduino and copies itself to the tools directory.
+This tool is installed by running `install-windows.bat` as Administrator. Do this by right-clicking on the file and selecting `Run as administraor`. This script creates a new menu option in Arduino and copies itself to the tools directory.
 
 Installing on Linux
 -------------------------------------------
-Run `install.sh` to install. It assumes your Arduino is installed in `~/arduino`. If this is not, pass the direction with the `-i=path` option.
+Run `install-linux.sh` to install. It assumes your Arduino is installed in `~/arduino`. If this is not, pass the direction with the `-i=path` option.
 
 New menu options
 -------------------------------------------

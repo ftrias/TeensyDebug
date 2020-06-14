@@ -26,6 +26,8 @@ import re
 import tempfile
 import stat
 import shutil
+from os.path import expanduser
+
 
 #
 # Process args in style of teensy_post_compile
@@ -125,6 +127,16 @@ def installGDB():
     shutil.copy("teensy_debug.py", TOOLS)
 
   createFiles(AVR, EXT)
+
+  home = expanduser("~")
+  dest = home + "/Arduino/libraries/TeensyDebug/"
+  if not os.path.exists(dest):
+    print("not", dest)
+    os.makedirs(dest)
+
+  for i in ("README.md", "TeensyDebug.h", "TeensyDebug.cpp", "gdbstub.cpp"):
+    shutil.copy(i, dest)
+  shutil.copytree('examples', dest + "examples")
 
 def createFiles(AVR, EXT):
   with open(AVR + "boards.local.txt", "w+") as f:
