@@ -1,6 +1,8 @@
 #include "TeensyDebug.h"
 
-int mark1 = 0;
+#pragma GCC optimize ("O0")
+
+volatile int mark = 0;
 
 void break_me() {
   Serial.print("BREAK at 0x");
@@ -13,11 +15,10 @@ void break_me() {
 // inline the function and you won't be able to set a
 // breakpoint.
 //
-// #pragma GCC optimize ("O0")
 
 DEBUGRUN
 void test_function() {
-  mark1++;
+  mark++;
 }
 
 void setup() {
