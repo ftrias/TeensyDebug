@@ -134,7 +134,7 @@ def installGDB():
     print("not", dest)
     os.makedirs(dest)
 
-  for i in ("README.md", "TeensyDebug.h", "TeensyDebug.cpp", "gdbstub.cpp"):
+  for i in ("README.md", "library.properties", "keywords.txt", "license.txt", "TeensyDebug.h", "TeensyDebug.cpp", "gdbstub.cpp"):
     shutil.copy(i, dest)
   shutil.copytree('examples', dest + "examples")
 
