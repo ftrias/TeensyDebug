@@ -1,0 +1,4 @@
+Please run teensy_debug.exe as Administrator
+
+rem pushd %~dp0
+rem start teensy_debug.exe
