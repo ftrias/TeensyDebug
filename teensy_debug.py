@@ -81,36 +81,44 @@ def installGDB():
 
   DIR = None
 
+
+  if os.name == 'nt':
+    EXT = "exe"
+  elif sys.platform == 'darwin':
+    EXT = "command"
+  else:
+    EXT = "py"
+
   if args.has("i") and args.i != 1:
     DIR = args.i
   else:
     if os.name == 'nt':
       DIR = "C:/Program Files (x86)/Arduino/"
-      EXT = "exe"
     elif sys.platform == 'darwin':
       APPDIR = "/Applications/"
-      EXT = "command"
       if os.path.exists(APPDIR + "Teensyduino.app"):
         DIR = APPDIR + "Teensyduino.app/"
-      elif os.path.exists(DIR + "Arduino.app"):
+      # elif os.path.exists(DIR + "Arduino.app"):
+      else:
         DIR = APPDIR + "Arduino.app/"    
     else:
-      EXT = "py"
       DIR = "~/arduino/"
 
-  if DIR is None:
-    print("Teensyduino not found in %s! Try using -i" % DIR)
-    return 0
-
-  if os.path.exists(DIR + "hardware"):
-    TOOLS = DIR + "hardware/tools/"
-    AVR = DIR + "hardware/teensy/avr/"
-  elif os.path.exists(DIR + "Contents"):
-    TOOLS = DIR + "Contents/Java/hardware/tools/"
-    AVR = DIR + "Contents/Java/hardware/teensy/avr/"
-  else:
-    print("Teensyduino app found, but contents not found in %s! Try using -i" % DIR)
-    return 0
+  while(True):
+    if os.path.exists(DIR + "hardware"):
+      TOOLS = DIR + "hardware/tools/"
+      AVR = DIR + "hardware/teensy/avr/"
+      break
+    elif os.path.exists(DIR + "Contents"):
+      TOOLS = DIR + "Contents/Java/hardware/tools/"
+      AVR = DIR + "Contents/Java/hardware/teensy/avr/"
+      break
+    else:
+      print("Teensyduino not found in %s" % DIR)
+      print("Where is Arduino installed? ")
+      print("? ", end='')
+      DIR = input()
+      DIR = DIR.strip() + "/"
 
   print("Teensyduino found in %s" % DIR)
   print("Teensyduino tools in %s" % TOOLS)

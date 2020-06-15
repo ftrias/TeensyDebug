@@ -1,13 +1,12 @@
-
 20200615
 
-Using GDB with Teensy, first Beta
+Using GDB with Teensy without hardware debugger, first Beta
 
-I put together a library that allows GDB (included in Arduino) to perform source-level debugging on the Teensy without an external debug interface (no need for SWD, etc). It uses GDB's Remote Serial Protocol to communicate with Teensy over a Serial connection (hardware or USB). No extra hardware or software is required. 
+I put together a library that allows GDB (included in Teensyduino) to perform source-level debugging on the Teensy without debugging hardware (no need for JTAG, SWD, etc). It uses GDB's Remote Serial Protocol to communicate with Teensy over a Serial connection (physical or USB). No extra hardware or software is required. 
 
-This is a beta release for comments and testing. It works on Teensy 4 and 3.2. Tested primarily on Mac.
+This is a beta release for comments and testing. It works on Teensy 4. Tested primarily on Mac.
 
-See https://forum.pjrc.com/threads/61262-Sleeping-to-disable-C_DEBUGEN?p=243070&posted=1#post243070 for previous discussion.
+See https://forum.pjrc.com/threads/61262-Sleeping-to-disable-C_DEBUGEN?p=243070&posted=1#post243070 for previous discussion and this for background: https://forum.pjrc.com/threads/26358-Software-Debugger-Stack.
 
 Highlights:
 
@@ -17,9 +16,9 @@ Highlights:
 * Halt code at any time
 * Next/step one instruction at a time
 
-Since real breakpoints are permanently disabled on the Teensy, in order to emulate breakpoints the library uses the SVC interrupt (like I did in TeensyThreads). Since Teensy 4 places most code in RAM, activating a breakpoint replaces the original instructions with SVC calls (and puts the orignal back later). On Teensy 3.2, setting breakpoints uses the Cortex-M4's features to "patch" parts of flash by pointing it to RAM. 
+Since real breakpoints are permanently disabled on the Teensy, in order to emulate breakpoints the library uses the SVC interrupt (like I did in TeensyThreads). Since Teensy 4 places most code in RAM, activating a breakpoint replaces the original instructions with SVC calls (and puts the original back later). On Teensy 3.2, setting breakpoints uses the Cortex-M4's features to "patch" parts of flash by pointing it to RAM. 
 
-The library is enabled by including a header, `TeensyDebug.h`. On Macs, there is a python script that adds a menu option and configures Arduino to open GDB automatically after uploading your program. On other platforms, you run GDB manually and use `target remote` to connect to the serial port used by the GDB interface. However, the python script is simple and could easily be ported to Windows (or rewritten in C).
+The library is enabled by including a header, `TeensyDebug.h`. There is a program that adds a menu option that configures Arduino to open GDB automatically after uploading your program. You can also run GDB manually and use `target remote` to connect to the serial port used by the GDB interface.
 
 To read more and try it out visit: http://github.com/ftrias/TeensyDebug
 
