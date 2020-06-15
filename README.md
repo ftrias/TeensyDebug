@@ -10,7 +10,7 @@ This module provides breakpoint support for the Teensy 3/4 platform from PJRC wi
 
 3. Catch hard crashes and display diagnosics.
 
-For background see: https://forum.pjrc.com/threads/26358-Software-Debugger-Stack
+Forum discussion: https://forum.pjrc.com/threads/61373-Using-GDB-with-Teensy-without-hardware-debugger-first-Beta?p=243249&posted=1#post243249
 
 GDB background
 ===========================================
@@ -58,6 +58,18 @@ void loop() {
 
 The `#pragma` will eliminate optimizations. If you don't use it, the compiler will inline `test_function()` and remove the symbol. It may also eliminate `mark` after realizing it serves no purpose.
 
+Installing
+-------------------------------------------
+
+There are installers for Mac, Linux and Windows. The installer does these things:
+
+1. Create a directory named TeensyDebug in your library and copy source files there.
+2. Customize IDE configuration
+   (a) Copy customized `boards.local.txt` and `platform.local.txt` to `hardware/teensy/avr` directory. These files create the menu options and cause `teensy_debug` to be used to upload the program and run GDB.
+3. Copy teensy_debug for your platform to the `hardware/tools` directory.
+
+You can either do these things by hand or use the installer app for your platform as described below.
+
 Installing on Mac
 -------------------------------------------
 
@@ -76,7 +88,7 @@ Run `install-linux.sh` to install. It assumes your Arduino is installed in `~/ar
 Installing from ZIP file
 -------------------------------------------
 
-If you install this library as a ZIP file from the Arduino menu, it will not install the additional menu options for running GDB after uploads and you will have to follow the "Running GDB manually" instructions a few sections below.
+If you install this library as a ZIP file from the Arduino menu, it will not install the additional menu options for running GDB after uploads. You will either have to do these things manually (see above) or you will have to follow the "Running GDB manually" instructions a few sections below.
 
 New menu options
 -------------------------------------------
