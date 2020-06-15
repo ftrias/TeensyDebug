@@ -127,7 +127,8 @@ int hex(unsigned char ch) {
  * @param sz Number of bytes to convert
  * @return char* The address of the last character (a \0) in buff
  */
-char *mem2hex(char *buff, const void *addr, int sz) {
+char *mem2hex(char *buff, const void *addr, int sz = -1) {
+  if (sz < 0) sz = strlen((char*)addr);
   for (int i = 0; i < sz; i++) {
     uint8_t b = ((uint8_t*)addr)[i];
     *buff++ = int2hex[b >> 4];
@@ -201,6 +202,18 @@ static int hex32ToInt(const char **ptr)
   // Serial.print("parse ");Serial.println(intValue);
   *ptr += 8;
   return intValue;
+}
+
+static int strToInt(const char *str) {
+  if (str[0] == '0' && str[1] == 'x') {
+    int ret;
+    str += 2;
+    hexToInt(&str, &ret);
+    return ret;
+  }
+  else {
+    return atoi(str);
+  }
 }
 
 /**
@@ -349,28 +362,63 @@ int process_g(const char *cmd, char *result) {
  */
 int process_G(const char *cmd, char *result) {
   // Not fully supported; enable when restore*() works
-  strcpy(result, "E01");
-  return 0;
-  // cmd++;
-  // debug.setRegister("r0", hex32ToInt(&cmd));
-  // debug.setRegister("r1", hex32ToInt(&cmd));
-  // debug.setRegister("r2", hex32ToInt(&cmd));
-  // debug.setRegister("r3", hex32ToInt(&cmd));
-  // debug.setRegister("r4", hex32ToInt(&cmd));
-  // debug.setRegister("r5", hex32ToInt(&cmd));
-  // debug.setRegister("r6", hex32ToInt(&cmd));
-  // debug.setRegister("r7", hex32ToInt(&cmd));
-  // debug.setRegister("r8", hex32ToInt(&cmd));
-  // debug.setRegister("r9", hex32ToInt(&cmd));
-  // debug.setRegister("r10", hex32ToInt(&cmd));
-  // debug.setRegister("r11", hex32ToInt(&cmd));
-  // debug.setRegister("r12", hex32ToInt(&cmd));
-  // debug.setRegister("sp", hex32ToInt(&cmd));
-  // debug.setRegister("lr", hex32ToInt(&cmd));
-  // debug.setRegister("pc", hex32ToInt(&cmd));
-  // debug.setRegister("cspr", hex32ToInt(&cmd));
-  // strcpy(result, "OK");
+  // strcpy(result, "E01");
   // return 0;
+  cmd++;
+  debug.setRegister("r0", hex32ToInt(&cmd));
+  debug.setRegister("r1", hex32ToInt(&cmd));
+  debug.setRegister("r2", hex32ToInt(&cmd));
+  debug.setRegister("r3", hex32ToInt(&cmd));
+  debug.setRegister("r4", hex32ToInt(&cmd));
+  debug.setRegister("r5", hex32ToInt(&cmd));
+  debug.setRegister("r6", hex32ToInt(&cmd));
+  debug.setRegister("r7", hex32ToInt(&cmd));
+  debug.setRegister("r8", hex32ToInt(&cmd));
+  debug.setRegister("r9", hex32ToInt(&cmd));
+  debug.setRegister("r10", hex32ToInt(&cmd));
+  debug.setRegister("r11", hex32ToInt(&cmd));
+  debug.setRegister("r12", hex32ToInt(&cmd));
+  debug.setRegister("sp", hex32ToInt(&cmd));
+  debug.setRegister("lr", hex32ToInt(&cmd));
+  debug.setRegister("pc", hex32ToInt(&cmd));
+  debug.setRegister("cspr", hex32ToInt(&cmd));
+  strcpy(result, "OK");
+  return 0;
+}
+
+int process_P(const char *cmd, char *result) {
+  // Not fully supported; enable when restore*() works
+  // strcpy(result, "E01");
+  // return 0;
+  cmd++;
+  int reg = hex(*cmd++);
+  cmd++; // skip =
+  uint32_t val = hex32ToInt(&cmd);
+  switch(reg) {
+    case 0: debug.setRegister("r0", val); break;
+    case 1: debug.setRegister("r1", val); break;
+    case 2: debug.setRegister("r2", val); break;
+    case 3: debug.setRegister("r3", val); break;
+    case 4: debug.setRegister("r4", val); break;
+    case 5: debug.setRegister("r5", val); break;
+    case 6: debug.setRegister("r6", val); break;
+    case 7: debug.setRegister("r7", val); break;
+    case 8: debug.setRegister("r8", val); break;
+    case 9: debug.setRegister("r9", val); break;
+    case 10: debug.setRegister("r10", val); break;
+    case 11: debug.setRegister("r11", val); break;
+    case 12: debug.setRegister("r12", val); break;
+    case 13: debug.setRegister("sp", val); break;
+    case 14: debug.setRegister("lr", val); break;
+    case 15: debug.setRegister("pc", val); break;
+    case 16: debug.setRegister("cspr", val); break;
+    // case 13: strcpy(result, "E01"); return 0;
+    // case 14: strcpy(result, "E01"); return 0;
+    // case 15: strcpy(result, "E01"); return 0;
+    // case 16: strcpy(result, "E01"); return 0;
+  }
+  strcpy(result, "OK");
+  return 0;
 }
 
 /**
@@ -584,16 +632,21 @@ char *getNextWord(char **text) {
   return orig;
 }
 
+int (*call0)();
+int (*call1)(int p1);
+int (*call2)(int p1, int p2);
+int (*call3)(int p1, int p2, int p3);
+
 int process_monitor(char *cmd, char *result) {
   char *place = cmd;
   char *word;
   word = getNextWord(&place);
-  // Serial.print("command1 ");Serial.println(word);
+  // Serial.print("command :");Serial.print(word);Serial.println(":");
   if (stricmp(word, "digitalWrite") == 0) {
     char *pin = getNextWord(&place);
     char *state = getNextWord(&place);
-    int ipin = atoi(pin);
-    int istate = atoi(state);
+    int ipin = strToInt(pin);
+    int istate = strToInt(state);
     if (stricmp(state, "high")==0) istate = 1;
     pinMode(ipin, OUTPUT);
     digitalWrite(ipin, istate);
@@ -602,10 +655,10 @@ int process_monitor(char *cmd, char *result) {
   }
   else if (stricmp(word, "digitalRead") == 0) {
     char *pin = getNextWord(&place);
-    int ipin = atoi(pin);
+    int ipin = strToInt(pin);
     pinMode(ipin, INPUT);
     int v = digitalRead(ipin);
-    char x[256];
+    char x[6];
     sprintf(x, "%d\n", v);
     mem2hex(result, (const char *)x, strlen(x));
     return 0;   
@@ -613,8 +666,8 @@ int process_monitor(char *cmd, char *result) {
   else if (stricmp(word, "analogWrite") == 0) {
     char *pin = getNextWord(&place);
     char *state = getNextWord(&place);
-    int ipin = atoi(pin);
-    int istate = atoi(state);
+    int ipin = strToInt(pin);
+    int istate = strToInt(state);
     pinMode(ipin, OUTPUT);
     analogWrite(ipin, istate);
     strcpy(result, "OK"); 
@@ -622,13 +675,57 @@ int process_monitor(char *cmd, char *result) {
   }
   else if (stricmp(word, "analogRead") == 0) {
     char *pin = getNextWord(&place);
-    int ipin = atoi(pin);
+    int ipin = strToInt(pin);
     pinMode(ipin, INPUT);
     int v = analogRead(ipin);
-    char x[256];
+    char x[6];
     sprintf(x, "%d\n", v);
     mem2hex(result, (const char *)x, strlen(x));
     return 0;   
+  }
+  else if (stricmp(word, "call") == 0) {
+    int args = 0, p[4], ret;
+    char *arg = getNextWord(&place);
+    uint32_t addr = strToInt(arg);
+    // Serial.print("addr ");Serial.println(addr);
+    if (addr == 0) {
+      mem2hex(result, "E Invalid address\n");
+      return 0;
+    }
+    addr |= 1; // set the exchange bit
+    for(int i=0; i<4; i++) {
+      if (*place == 0) break; 
+      arg = getNextWord(&place);
+      p[args] = strToInt(arg);
+      // Serial.print("parameter ");Serial.println(p[args]);
+      args++;
+    }
+    // Serial.print("arguments ");Serial.println(args);
+    switch(args) {
+      case 0:
+        call0 = (int (*)())addr;
+        ret = call0();
+        break;
+      case 1:
+        call1 = (int (*)(int))addr;
+        ret = call1(p[0]);
+        break;
+      case 2:
+        call2 = (int (*)(int,int))addr;
+        ret = call2(p[0], p[1]);
+        break;
+      case 3:
+        call3 = (int (*)(int,int,int))addr;
+        ret = call3(p[0], p[1], p[2]);
+        break;
+      default:
+        mem2hex(result, "E Too many parameters (max=3)\n");
+        return 0;
+    }
+    char x[40];
+    sprintf(x, "%d\n", ret);
+    mem2hex(result, (const char *)x, strlen(x));
+    return 0; 
   }
   else if (stricmp(word, "restart") == 0) {
     CPU_RESTART;
@@ -700,6 +797,7 @@ int processCommand(const char *cmd, char *result) {
   switch(cmd[0]) {
     case 'g': return process_g(cmd, result);
     case 'G': return process_G(cmd, result);
+    case 'P': return process_P(cmd, result);
     case 'm': return process_m(cmd, result);
     case 'M': return process_M(cmd, result);
     case 'c': return process_c(cmd, result);
@@ -789,7 +887,7 @@ void processGDBinput() {
   }
   *pcmd = 0;
   
-  // Serial.print("got command:");Serial.println(cmd);
+  // Serial.print("gdb command:");Serial.println(cmd);
   
   c = getDebugChar();
   checksum = hex(c) << 4;
@@ -861,7 +959,11 @@ void gdb_init(Stream *device) {
   debug.setCallback(process_onbreak);
   debug_active = 1;
 
-  // We could halt at startup, but maybe it's best to let user 
-  // explicitly do so with a breakpoint(n)
-  //    debug.setBreakpoint(setup_main, 1);
+#ifdef GDB_HALT_ON_STARTUP
+  #ifdef REMAP_SETUP
+    debug.setBreakpoint(setup_main, 1);
+  #else
+    debug.setBreakpoint(setup, 1);
+  #endif
+#endif
 }

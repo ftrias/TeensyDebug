@@ -366,6 +366,9 @@ int debugenabled = 0;
 // Are we in a breakpoint or step instruction?
 int debugstep = 0;
 
+// Restore registers before returning?
+int debugrestore = 0;
+
 // Pretty names for breakpoint and fault types
 const char *hard_fault_debug_text[] = {
   "debug", "break", "nmi", "hard", "mem", "bus", "usage"
@@ -557,6 +560,7 @@ void setBreakPointNext(uint32_t breakaddr, uint32_t nextaddr) {
   }
   debug_setBreakpoint((void*)temp_breakpoint, 0);
 }
+
 /**
  * @brief Called by software interrupt to perform breakpoint manipulation
  * during execution and to call the callback.
@@ -660,6 +664,37 @@ void debug_monitor() {
     "str r11, [r0, #60] \n" \
     "str r1, [r0, #64] \n"
 
+#define RESTORE_REGISTERS \
+    "ldr r0, =stack \n" \
+    "ldr r1, [r0] \n " \
+    "ldr r0, =save_registers \n" \
+    "ldr r2, [r0, #0] \n" \
+    "str r2, [r1, #0] \n" \
+    "ldr r2, [r0, #4] \n" \
+    "str r2, [r1, #4] \n" \
+    "ldr r2, [r0, #8] \n" \
+    "str r2, [r1, #8] \n" \
+    "ldr r2, [r0, #12] \n" \
+    "str r2, [r1, #12] \n" \
+    "ldr r2, [r0, #16] \n" \
+    "str r2, [r1, #16] \n" \
+    \
+    "ldr r2, [r0, #20] \n" \
+    "str r2, [r1, #20] \n" \
+    "ldr r2, [r0, #24] \n" \
+    "str r2, [r1, #24] \n" \
+    "ldr r2, [r0, #28] \n" \
+    "str r2, [r1, #28] \n" \
+    \
+    "ldr r4, [r0, #32] \n" \
+    "ldr r5, [r0, #36] \n" \
+    "ldr r6, [r0, #40] \n" \
+    "ldr r7, [r0, #44] \n" \
+    "ldr r8, [r0, #48] \n" \
+    "ldr r9, [r0, #52] \n" \
+    "ldr r10, [r0, #56] \n" \
+    "ldr r11, [r0, #60] \n" \
+
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 
@@ -695,7 +730,17 @@ void debug_call_isr() {
   asm volatile("push {lr}");
   debug_monitor();              // process the debug event
   debugenabled = 0;
-  asm volatile("pop {pc}");
+  // Serial.print("restore regs=");Serial.println(debugrestore);
+
+  asm volatile("pop {r0}");
+  asm volatile("mov lr, r0");
+  if (debugrestore) {
+    debugrestore = 0;
+    asm volatile(RESTORE_REGISTERS);
+  }
+  asm volatile("bx lr");
+
+  // asm volatile("pop {pc}");
 }
 
 /**
@@ -798,6 +843,7 @@ uint32_t debug_getRegister(const char *reg) {
 }
 
 int debug_setRegister(const char *reg, uint32_t value) {
+  debugrestore = 1;
   if (reg[0] == 'r') {
     if (reg[2] == 0) { // r0-r9
       switch(reg[1]) {

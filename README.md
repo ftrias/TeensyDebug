@@ -1,5 +1,6 @@
 Live debugging on Teensy & GDB support
 ===========================================
+By Fernando Trias, June 2020
 
 This module provides breakpoint support for the Teensy 3/4 platform from PJRC without need for an external debug interface. The module provides two features:
 
@@ -158,11 +159,12 @@ GDB provides a command called `monitor` for sending arbitrary text to the Teensy
 
 These are the commands implemented so far:
 
-* digitalRead(pin) -> returns 1 or 0
-* digitalWrite(pin, 1_or_0)
-* analogRead(pin)  -> returns analog input from pin
-* analogWrite(pin, value)
-* restart          -> reboot Teensy
+* `digitalRead(pin)` -> returns 1 or 0
+* `digitalWrite(pin, 1_or_0)`
+* `analogRead(pin)` -> returns analog input from pin
+* `analogWrite(pin, value)`
+* `restart` -> reboot Teensy
+* `call(addr [,p1 [,p2 [,p3]]])` -> call a function at address. The function takes only integers as parameters (up to 3) and returns an integer, which is displayed back to the user. Address must be numeric. You can get the address of a function with the `p` command as in `p funcname`. For example `int fx(int x)` would be called with `monitor call(0xc8,1)`.
 
 Internal workings
 ===========================================
