@@ -113,19 +113,8 @@ $ /Applications/Teensyduino.app/Contents/Java/hardware//tools/arm/bin/arm-none-e
 GDB outputs:
 
 ```
-GNU gdb (GNU Tools for ARM Embedded Processors) 7.10.1.20160923-cvs
-Copyright (C) 2015 Free Software Foundation, Inc.
-License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
-and "show warranty" for details.
-This GDB was configured as "--host=x86_64-apple-darwin10 --target=arm-none-eabi".
-Type "show configuration" for configuration details.
-For bug reporting instructions, please see:
-<http://www.gnu.org/software/gdb/bugs/>.
-Find the GDB manual and other documentation resources online at:
-<http://www.gnu.org/software/gdb/documentation/>.
-For help, type "help".
+GNU gdb ...
+....
 Type "apropos word" to search for commands related to "word".
 (gdb)
 ```
@@ -164,22 +153,22 @@ These are the commands implemented so far:
 * `analogRead(pin)` -> returns analog input from pin
 * `analogWrite(pin, value)`
 * `restart` -> reboot Teensy
-* `call(addr [,p1 [,p2 [,p3]]])` -> call a function at address. The function takes only integers as parameters (up to 3) and returns an integer, which is displayed back to the user. Address must be numeric. You can get the address of a function with the `p` command as in `p funcname`. For example `int fx(int x)` would be called with `monitor call(0xc8,1)`.
+* `call(addr [,p1 [,p2 [,p3]]])` -> call a function at address. The function takes only integers (or pointers) as parameters (up to 3) and returns an integer that is displayed back to the user. Address must be numeric. You can get the address of a function with the `p` command as in `p funcname`. For example if `int fx(int x)` is located at `0xc8`, the command would be `monitor call(0xc8,1)`.
 
 Internal workings
 ===========================================
 
 This is how it works:
 
-1. By using a timer, the Teensy listens to GDB commands from a serial device.
+1. Using a timer, the Teensy listens for GDB commands from a serial device.
 
 2. When it gets commands like memory queries, memory sets and things that don't require halting, it responds with the data requested. In this way, you can inspect a running program.
 
-3. When it receives a halt command, Teensy will just go into a loop querying for commands and responding. It won't return to it's caller until GDB tells it to do so. Thus, execution of the main thread will stop but interrupts will continue. Because interrupts continue, on the plus side, the Teensy won't die and USB and other features will stay active. On the other hand, sometimes you just the want the system to halt. Perhaps there could be an option to halt all interrupts as well or change the priority. Keeping interrupts going is probably easier for beginners and models what desktop apps do (when an apps stops, the OS keeps going).
+3. When it receives a halt command, Teensy will just go into a loop querying for commands and responding. It won't return to it's caller until GDB tells it to do so. Thus, execution of the main thread will stop but interrupts will continue. Because interrupts continue, on the plus side, the Teensy won't die and USB and other features will stay active. On the other hand, sometimes you just the want the system to halt. Perhaps there could be an option to halt all interrupts as well or change the priority. Keeping interrupts going is probably easier for beginners and models what desktop apps do (when an app stops, the OS keeps going).
 
-4. Provide a special hardwired "breakpoint" instruction that you can insert into your code. Each breakpoint will have a flag in RAM to determine if it is enabled or not. If enabled, when execution reaches it, it will execute an interrupt (software or SVC). If disabled, execution just keeps going. Breakpoints are enabled/disabled based on commands received from GDB.
+4. Provide a special hardwired "breakpoint" instruction that you can insert into your code. Each breakpoint will have a flag in RAM to determine if it is enabled or not. If enabled, when execution reaches it, it will execute an interrupt (software or SVC). If disabled, execution just keeps going. Breakpoints are enabled/disabled based on commands received from GDB. This allows for breakpoints in Flash.
 
-5. If a function is placed in RAM, you can dynamically insert/remove SVC calls in the code, in the same way that standard debuggers work. Teensy 4 places all user code in RAM. On Teensy 3, you can put a function by specifying FASTRAM. Again, breakpoints like this can be set and enabled/disabled by GDB.
+5. If a function is placed in RAM, dynamically insert/remove SVC calls in the code. Teensy 4 places all user code in RAM. On Teensy 3, you can put a function in RAM by specifying FASTRAM. Again, breakpoints like this can be set and enabled/disabled by GDB.
 
 6. On the Teensy 3.2, we use the Flash Patch Block to set and remove SVC calls using patching. Thus, you can dynamically set breakpoints in flash. Teensy 4 doesn't support this, but since it places code in RAM, that's probably not a big deal.
 
@@ -197,14 +186,12 @@ Bugs
 
 2. `step` may not always step into functions. Stepping won't always work over a return. TeensyDebug traps `bx lr`, `pop {Rmmm, pc}`, `mov pc, Rm` and will usually step properly over these instruction if using gdb `stepi` command. Branch instructions are also interpreted properly most of the time. However gdb `step` and `next` may occasionally get confused and stop stepping.
 
-3. Port `teensy_debug` to C. Or better yet, integrate it with `teensy_post_compile`.
-
 Future considerations
 -------------------------------------------
 
-The `run.command` script should be ported to Windows and Linux.
+The `teensy_debug` script should be ported to Windows and Linux. Or better yet, integrate it with `teensy_post_compile`.
 
-The serial connection can be anything that supports reading and writing ASCII in sequence. To start it's probably best to use a UART or USB Serial but in theory it could be USB Serial, CAN, network, Raw connection, etc.
+The serial connection can be anything that supports reading and writing ASCII in sequence. To start it's probably best to use a UART or USB Serial but in theory it could also be CAN, network socket, USB Raw, MIDI, etc.
 
 GDB can accept "file" commands from Teensy. Thus, teensy could send commands to open, read and write files on the host PC running GDB. This could be useful in many applications.
 
