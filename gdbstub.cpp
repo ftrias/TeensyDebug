@@ -288,6 +288,22 @@ size_t gdb_out_print(const char *msg) {
   return gdb_out_write((const uint8_t *)msg, strlen(msg));
 }
 
+int file_io_result;
+int file_io_errno;
+int file_io_pending = 0;
+
+int gdb_file_io(const char *cmd) {
+  // Serial.println(cmd);
+  file_io_pending = 1;
+  sendResult(cmd);
+  while(file_io_pending) {
+    delay(10);
+    yield();
+  }
+  // Serial.println(file_io_result);
+  return file_io_result;
+}
+
 /**
  * @brief Routing for processing breakpoints
  * 
@@ -767,7 +783,25 @@ int process_q(const char *cmd, char *result) {
  */
 int process_F(const char *cmd, char *result) {
   // Serial.println(cmd);
-  strcpy(result, "");    
+  cmd++;
+  // error
+  if (*cmd == '-') { 
+    cmd++;
+    hexToInt(&cmd, &file_io_result); // don't care. We figure out what's best.
+    file_io_result = -file_io_result;
+  }
+  else {
+    hexToInt(&cmd, &file_io_result); // don't care. We figure out what's best.
+  }
+  if (*cmd == ',') {
+    cmd++;
+    hexToInt(&cmd, &file_io_errno);
+  }
+  else {
+    file_io_errno = 0;
+  }
+  file_io_pending = 0;
+  strcpy(result, "OK"); 
   return 0;
 }
 
@@ -782,7 +816,15 @@ int process_R(const char *cmd, char *result) {
   // _reboot_Teensyduino_();
   // _restart_Teensyduino_();
   CPU_RESTART;
-  strcpy(result, "");    
+  strcpy(result, "OK");    
+  return 0;
+}
+
+int process_k(const char *cmd, char *result) {
+  // _reboot_Teensyduino_();
+  // _restart_Teensyduino_();
+  CPU_RESTART;
+  strcpy(result, "OK");    
   return 0;
 }
 
@@ -805,6 +847,7 @@ int processCommand(const char *cmd, char *result) {
     case 'F': return process_F(cmd, result);
     case 'R': return process_R(cmd, result);
     case 'r': return process_R(cmd, result);
+    case 'k': return process_k(cmd, result);
     
     case '?': return process_question(cmd, result);
 //    case 'B': return process_B(cmd, result);
@@ -843,6 +886,10 @@ void processGDBinput() {
   // GDB had a problem with last command; should resend. TODO
   if (c == '-') {
     // Serial.println("NAK");
+    if (file_io_pending) {
+      file_io_result = -1;
+      file_io_pending = 0;
+    }
     return;
   }
 

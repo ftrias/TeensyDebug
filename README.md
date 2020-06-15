@@ -26,7 +26,7 @@ Since Teensduino comes with a GDB executable for ARM processors, there is no nee
 Sample code and usage
 -------------------------------------------
 
-```C
+```C++
 #include "TeensyDebug.h"
 #pragma GCC optimize ("O0")
 
@@ -155,10 +155,34 @@ These are the commands implemented so far:
 * `restart` -> reboot Teensy
 * `call(addr [,p1 [,p2 [,p3]]])` -> call a function at address. The function takes only integers (or pointers) as parameters (up to 3) and returns an integer that is displayed back to the user. Address must be numeric. You can get the address of a function with the `p` command as in `p funcname`. For example if `int fx(int x)` is located at `0xc8`, the command would be `monitor call(0xc8,1)`.
 
+File IO command
+-------------------------------------------
+
+GDB supports the target writing files in the PCs file system. This is suppored by the `debug.file_*` option. They follow the standard Posix conventions. If a function returns a negative number, it means failure: The methods of `debug` are:
+
+* `int file_errno()`
+* `int file_open(const char *file, int flags = O_CREAT | O_RDWR, int mode = 0644)`
+* `int file_close(int fd)`
+* `int file_read(int fd, void *buf, unsigned int count)`
+* `int file_write(int fd, const void *buf, unsigned int count)`
+* `int file_system(const char *buf)`
+
+For example:
+```C++
+int fd = debug.file_open("/tmp/test.out");
+if (fd < 0) {
+  Serial.println(debug.file_errno());
+}
+else {
+  debug.file_write(fd, "abc", 3);
+  debug.file_close(fd);
+}
+```
+
 Internal workings
 ===========================================
 
-This is how it works:
+This is how breakpoints are implemented:
 
 1. Using a timer, the Teensy listens for GDB commands from a serial device.
 

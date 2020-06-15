@@ -72,8 +72,42 @@ int hcdebug_setBreakpoint(int n);
 // uint32_t debug_getRegister(const char *reg);
 
 size_t gdb_out_write(const uint8_t *msg, size_t len);
+int gdb_file_io(const char *msg);
+extern int file_io_errno;
 
-class Debug : public Print {
+#define O_CREAT         0x200
+#define O_APPEND        8
+#define O_RDONLY        0
+#define O_WRONLY        1
+#define O_RDWR          2
+class DebugFileIO {
+private:
+  char gdb_io[256];
+public:
+  int file_errno() { return file_io_errno; }
+  int file_open(const char *file, int flags = O_CREAT | O_RDWR, int mode = 0644) {
+    sprintf(gdb_io, "Fopen,%x/%x,%x,%x", (unsigned int)file, strlen(file), flags, mode);
+    return gdb_file_io(gdb_io);
+  }
+  int file_close(int fd) {
+    sprintf(gdb_io, "Fclose,%x", fd);
+    return gdb_file_io(gdb_io);
+  }
+  int file_read(int fd, void *buf, unsigned int count) {
+    sprintf(gdb_io, "Fread,%x,%x,%x", fd, (unsigned int)buf, count);
+    return gdb_file_io(gdb_io);
+  }
+  int file_write(int fd, const void *buf, unsigned int count) {
+    sprintf(gdb_io, "Fwrite,%x,%x,%x", fd, (unsigned int)buf, count);
+    return gdb_file_io(gdb_io);
+  }
+  int file_system(const char *buf) {
+    sprintf(gdb_io, "Fsystem,%x/%x", (unsigned int)buf, strlen(buf));
+    return gdb_file_io(gdb_io);
+  }
+};
+
+class Debug : public Print, public DebugFileIO {
 public:
   int begin(Stream *device = NULL);
   int begin(Stream &device) { return begin(&device); }

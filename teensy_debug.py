@@ -279,7 +279,7 @@ def runGDB(arguments):
   if args.gdb == "3":
     gdbcommand = '"%s" "%s"' % (GDB, ELF)
   else:
-    gdbcommand = '"%s" -ex "target remote %s" "%s"' % (GDB, usedev, ELF)
+    gdbcommand = '"%s" -ex "target extended-remote %s" "%s"' % (GDB, usedev, ELF)
 
   runCommand(gdbcommand)
 
