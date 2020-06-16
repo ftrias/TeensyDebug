@@ -8,6 +8,34 @@
  * @copyright Copyright (c) 2020 Fernando Trias
  * 
  */
+
+/*
+ * Notes:
+ * 
+ * Calling 'p' with a function as in `p func(1,2,3)` doesn't work. Use
+ * the 'monitor call' command instead. The reason it fails is that GDB 7 performs the
+ * call by:
+ * 
+ *   1. Setting a breakpoint at 0x60001000 (the ResetHandler)
+ *   2. Setting LR to 0x60001000
+ *   3. Setting PC to the funtion we want to call
+ *   4. Continuing
+ *   5. Upon finishing, the function returns to LR
+ *   6. The breakpoint is hit and GDB takes over
+ *   7. GDB unrolls the stack, etc. and gets result
+ * 
+ * This doesn't work because 0x60001000 is in Flash. I tried to do a soft 
+ * remap of 0x60001000 to a point in RAM, but that doesn't work. It fails 
+ * with a "Assertion `get_frame_type (frame) == DUMMY_FRAME' failed."
+ * I don't know why.
+ * 
+ * Newer versions of GDB choose a different breakpoint location. Instead
+ * of setting the breakpoint on the ResetHandler, they will set it on
+ * the stack. So perhaps the real fix is to update the GDB version
+ * distributed.
+ *  
+ */
+
 #include <Arduino.h>
 
 #define CPU_RESTART_ADDR (uint32_t *)0xE000ED0C
@@ -16,6 +44,12 @@
 
 #define GDB_DEBUG_INTERNAL
 #include "TeensyDebug.h"
+
+// #define GDB_DEBUG_COMMANDS
+
+#define GDB_POLL_INTERVAL_MICROSEC 500
+
+#define MAP_DUMMY_BREAKPOINT 0x60001000
 
 /**
  * Code to communicate with GDB. Use standard nomenclature.
@@ -222,6 +256,9 @@ static int strToInt(const char *str) {
  * @param result String of message to send
  */
 void sendResult(const char *result) {
+#ifdef GDB_DEBUG_COMMANDS
+  Serial.print("target reply:");Serial.println(result);
+#endif
   int checksum = calcChecksum(result);
   const char *presult = result;
   putDebugChar('$');
@@ -297,7 +334,7 @@ int gdb_file_io(const char *cmd) {
   file_io_pending = 1;
   sendResult(cmd);
   while(file_io_pending) {
-    delay(10);
+    delay(1);
     yield();
   }
   // Serial.println(file_io_result);
@@ -316,10 +353,15 @@ void process_onbreak() {
   // go into halt state and stay until flag is cleared
   halt_state = 1;
   while(halt_state) {
-    delay(10);
+    delay(1);
     yield();
   }
   debug_id = 0;
+}
+
+__attribute__((noinline, naked))
+void fake_breakpoint() {
+  asm volatile("svc 0x10");
 }
 #pragma GCC pop_options
 
@@ -340,6 +382,8 @@ char *append32(char *p, uint32_t n) {
   return p;
 }
 
+// extern void print_registers();
+
 /**
  * @brief Process 'g' command to return registers
  * 
@@ -348,6 +392,7 @@ char *append32(char *p, uint32_t n) {
  * @return int 0 = success
  */
 int process_g(const char *cmd, char *result) {
+  // print_registers();
   result = append32(result, debug.getRegister("r0"));
   result = append32(result, debug.getRegister("r1"));
   result = append32(result, debug.getRegister("r2"));
@@ -361,9 +406,15 @@ int process_g(const char *cmd, char *result) {
   result = append32(result, debug.getRegister("r10"));
   result = append32(result, debug.getRegister("r11"));
   result = append32(result, debug.getRegister("r12"));
-  result = append32(result, debug.getRegister("sp"));;
+  result = append32(result, debug.getRegister("sp"));
   result = append32(result, debug.getRegister("lr"));
-  result = append32(result, debug.getRegister("pc"));
+
+  uint32_t pc = debug.getRegister("pc");
+  if ((pc|1) == (uint32_t)&fake_breakpoint) {
+    pc = MAP_DUMMY_BREAKPOINT;
+  }
+  result = append32(result, pc);
+
   result = append32(result, debug.getRegister("cpsr"));
   *result = 0;
   return 0;
@@ -410,6 +461,7 @@ int process_P(const char *cmd, char *result) {
   int reg = hex(*cmd++);
   cmd++; // skip =
   uint32_t val = hex32ToInt(&cmd);
+  // Serial.print("Reg ");Serial.print(reg);Serial.print("=");Serial.println(val, HEX);
   switch(reg) {
     case 0: debug.setRegister("r0", val); break;
     case 1: debug.setRegister("r1", val); break;
@@ -425,7 +477,14 @@ int process_P(const char *cmd, char *result) {
     case 11: debug.setRegister("r11", val); break;
     case 12: debug.setRegister("r12", val); break;
     case 13: debug.setRegister("sp", val); break;
-    case 14: debug.setRegister("lr", val); break;
+    case 14:
+      if (val == (MAP_DUMMY_BREAKPOINT|1)) { // special breakpoint
+        debug.setRegister("lr", (uint32_t)&fake_breakpoint);
+      }
+      else {
+        debug.setRegister("lr", val);
+      }
+      break;
     case 15: debug.setRegister("pc", val); break;
     case 16: debug.setRegister("cspr", val); break;
     // case 13: strcpy(result, "E01"); return 0;
@@ -449,7 +508,7 @@ int isValidAddress(uint32_t addr) {
   if (addr <= 0x20) {
     return 0;
   }
-  else if (addr > 0xF0000000) {
+  else if (addr >= 0xF0000000) {
     return 0;
   }
   return 1;
@@ -594,6 +653,9 @@ int process_z(const char *cmd, char *result) {
   if (addr == 0) {
     strcpy(result, "E01");
   }
+  else if (addr == MAP_DUMMY_BREAKPOINT) { // hard-coded breakpoint
+    strcpy(result, "OK");
+  }
   else if (debug.clearBreakpoint((void*)addr)) {
     strcpy(result, "E01");
     strcpy(result, "OK");
@@ -623,7 +685,13 @@ int process_Z(const char *cmd, char *result) {
   if (addr == 0) {
     strcpy(result, "E01");
   }
+  else if (addr == MAP_DUMMY_BREAKPOINT) { // hard-coded breakpoint
+    strcpy(result, "OK");
+  }
   else if (debug.setBreakpoint((void*)addr)) {
+#ifdef GDB_DEBUG_COMMANDS
+  Serial.print("Breakpoint failed on ");Serial.println(addr);
+#endif
     strcpy(result, "E01");
   }
   else {
@@ -934,8 +1002,10 @@ void processGDBinput() {
   }
   *pcmd = 0;
   
-  // Serial.print("gdb command:");Serial.println(cmd);
-  
+#ifdef GDB_DEBUG_COMMANDS
+  Serial.print("gdb command:");Serial.println(cmd);
+#endif
+
   c = getDebugChar();
   checksum = hex(c) << 4;
   c = getDebugChar();
@@ -974,7 +1044,9 @@ void processGDB() {
   }
 #endif
   if (! debug_active) return;
-  processGDBinput();
+  while (hasDebugChar()) {
+    processGDBinput();
+  }
   if (send_message[0]) {
     // Serial.print("send ");Serial.println(send_message);
     sendResult(send_message);
@@ -1002,7 +1074,7 @@ IntervalTimer gdb_timer;
 void gdb_init(Stream *device) {
   send_message[0] = 0;
   devInit(device);
-  gdb_timer.begin(processGDB, 5000);
+  gdb_timer.begin(processGDB, GDB_POLL_INTERVAL_MICROSEC);
   debug.setCallback(process_onbreak);
   debug_active = 1;
 
