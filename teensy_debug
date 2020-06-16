@@ -59,7 +59,7 @@ def parseCommandLine(x=None):
 
 def askUser(question):
   print(question)
-  print("[y/n] ? ", end='')
+  print("[y/N]? ", end='')
   ask = input()
   if ask[0] == 'y' or ask[0] == 'Y':
     return True
@@ -71,11 +71,6 @@ def pauseUser():
 
 def installGDB():
   global args
-
-  ask = askUser("Do you want to install GDB support for Teensyduino?")
-
-  if not ask:
-    return 0
 
   print("Install GDB in Teensyduino")
 
@@ -99,7 +94,7 @@ def installGDB():
       else:
         DIR = APPDIR + "Arduino.app/"    
     else:
-      DIR = "~/arduino/"
+      DIR = expanduser("~") + "/arduino/"
 
   while(True):
     if os.path.exists(DIR + "hardware"):
@@ -122,7 +117,7 @@ def installGDB():
 
   while(not os.path.exists(DEST)):
     print("Custom library folder not found in %s" % DEST)
-    print("Where is Arduino installed? ")
+    print("Where are custom libraries installed? ")
     print("? ", end='')
     DEST = input()
     DEST = DEST.strip() + "/"
@@ -163,6 +158,7 @@ def installGDB():
     print("Copy %s to %s" % (i, dest))
     shutil.copy(i, dest)
 
+  print("Copy examples to %s" % (dest))
   try:
     shutil.rmtree(dest + '/examples')
   except:
@@ -175,7 +171,7 @@ def createFiles(AVR):
   print("Create %s/boards.local.txt" % (AVR))
   with open(AVR + "boards.local.txt", "w+") as f:
     f.write("menu.gdb=GDB\n")
-    for ver in ('41','40','32'):
+    for ver in ('41','40'):
       f.write("""
 teensy%s.menu.gdb.serial=Take over Serial
 teensy%s.menu.gdb.serial.build.gdb=2
@@ -245,11 +241,12 @@ def getPort():
     devs.append(dev)
 
   if len(devs) <= 0:
-    print("Could not find a extra Serial device. Did you compile one?")
-    exit(1)
+    print("Could not find an extra Serial device. Did you compile one?")
+    return None
 
   # get the last port found
   usedev = sorted(devs)[-1]
+  print("Found devices", usedev)
   return usedev
 
 def runGDB(arguments):
@@ -289,6 +286,9 @@ def runGDB(arguments):
     return
 
   usedev = getPort()
+
+  if usedev is None:
+    return
 
   gpath=args.tools + "/arm/bin/"
   GDB=convertPathSlashes("%s/arm-none-eabi-gdb" % gpath)
@@ -334,7 +334,7 @@ def runOnWindows(command):
   # run in separate terminal
   # print("batch file is %s" % f.name)
   os.system("start %s" % f.name)
-  # os.system("start %s" % command)
+  # os.system(command)
   # subprocess.run(["cmd.exe", "/k", f.name])
 
 def runCommand(command):
