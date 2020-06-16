@@ -387,14 +387,14 @@ char *append32(char *p, uint32_t n) {
 /*
  * Notes:
  * 
- * Calling 'p' with a function as in `p func(1,2,3)` doesn't work. Use
- * the 'monitor call' command instead. The reason it fails is that GDB 7 performs the
+ * Calling 'p' with a function as in `p func(1,2,3)` doesn't work without
+ * this hack. The reason it fails is that GDB 7 performs the
  * call by:
  * 
  *   1. Setting a breakpoint at 0x60001000 (the ResetHandler)
  *   2. Setting LR to 0x60001000
  *   3. Setting PC to the funtion we want to call
- *   4. Continuing
+ *   4. Continuing, which causes function to execute
  *   5. Upon finishing, the function returns to LR
  *   6. The breakpoint is hit and GDB takes over
  *   7. GDB unrolls the stack, etc. and gets result
@@ -409,8 +409,8 @@ char *append32(char *p, uint32_t n) {
  * 
  * Newer versions of GDB choose a different breakpoint location. Instead
  * of setting the breakpoint on the ResetHandler, they will set it on
- * the stack. So perhaps part of the fix is to update the GDB version
- * distributed.
+ * the stack. If that's the case, then this hack will stop working
+ * sinces it relies on the address of 0x60001000.
  *  
  */
 
@@ -573,16 +573,16 @@ int process_m(const char *cmd, char *result) {
     return 0;
   }
 
-  if (addr == MAP_DUMMY_BREAKPOINT) {
-    if (sz == 2) {
-      strcpy(result, "fbbe");
-      return 0;
-    }
-    else if (sz == 4) {
-      strcpy(result, "fbbe0000");
-      return 0;
-    }
-  }
+  // if (addr == MAP_DUMMY_BREAKPOINT) {
+  //   if (sz == 2) {
+  //     strcpy(result, "fbbe");
+  //     return 0;
+  //   }
+  //   else if (sz == 4) {
+  //     strcpy(result, "fbbe0000");
+  //     return 0;
+  //   }
+  // }
 
   uint8_t *m = (uint8_t *)addr;
   for (int i=0; i<sz; i++) {
