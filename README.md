@@ -165,7 +165,7 @@ These are the commands implemented so far:
 * `analogRead(pin)` -> returns analog input from pin
 * `analogWrite(pin, value)`
 * `restart` -> reboot Teensy
-* `call(addr [,p1 [,p2 [,p3]]])` -> call a function at address. The function takes only integers (or pointers) as parameters (up to 3) and returns an integer that is displayed back to the user. Address must be numeric. You can get the address of a function with the `p` command as in `p funcname`. For example if `int fx(int x)` is located at `0xc8`, as shown by `p fx`, then the command to return `fx(5)` would be `monitor call(0xc8,5)`.
+* `call(addr [,p1 [,p2 [,p3]]])` -> call a function at address. The function takes only integers (or pointers) as parameters (up to 3) and returns an integer that is displayed back to the user. Address must be numeric. You can get the address of a function with the `p` command as in `p funcname`. For example if `int fx(int x)` is located at `0xc8`, as shown by `p fx`, then the command to return `fx(5)` would be `monitor call(0xc8,5)`. Instead of this, you may want to use GDB's `p` with a function call, as in `p fx(1)`
 
 File IO command
 -------------------------------------------

@@ -27,11 +27,13 @@
  * This doesn't work because 0x60001000 is in Flash. I tried to do a soft 
  * remap of 0x60001000 to a point in RAM, but that doesn't work. It fails 
  * with a "Assertion `get_frame_type (frame) == DUMMY_FRAME' failed."
- * I don't know why.
+ * I think the reason is because GDB changes SP by subtracting 4 before
+ * calling the function. Unfortunately, this library doesn't support 
+ * GDB changing SP.
  * 
  * Newer versions of GDB choose a different breakpoint location. Instead
  * of setting the breakpoint on the ResetHandler, they will set it on
- * the stack. So perhaps the real fix is to update the GDB version
+ * the stack. So perhaps part of the fix is to update the GDB version
  * distributed.
  *  
  */
@@ -45,7 +47,7 @@
 #define GDB_DEBUG_INTERNAL
 #include "TeensyDebug.h"
 
-// #define GDB_DEBUG_COMMANDS
+#define GDB_DEBUG_COMMANDS
 
 #define GDB_POLL_INTERVAL_MICROSEC 500
 
@@ -382,6 +384,36 @@ char *append32(char *p, uint32_t n) {
   return p;
 }
 
+/*
+ * Notes:
+ * 
+ * Calling 'p' with a function as in `p func(1,2,3)` doesn't work. Use
+ * the 'monitor call' command instead. The reason it fails is that GDB 7 performs the
+ * call by:
+ * 
+ *   1. Setting a breakpoint at 0x60001000 (the ResetHandler)
+ *   2. Setting LR to 0x60001000
+ *   3. Setting PC to the funtion we want to call
+ *   4. Continuing
+ *   5. Upon finishing, the function returns to LR
+ *   6. The breakpoint is hit and GDB takes over
+ *   7. GDB unrolls the stack, etc. and gets result
+ * 
+ * This doesn't work because 0x60001000 is in Flash. I tried to do a soft 
+ * remap of 0x60001000 to a point in RAM, but that doesn't work. It fails 
+ * with a "Assertion `get_frame_type (frame) == DUMMY_FRAME' failed."
+ * I think the reason is because GDB changes SP by subtracting 4 before
+ * calling the function. Unfortunately, this library doesn't support 
+ * GDB changing SP. So I just hardcode subtracting 4 from SP and this
+ * seems to fool GDB.
+ * 
+ * Newer versions of GDB choose a different breakpoint location. Instead
+ * of setting the breakpoint on the ResetHandler, they will set it on
+ * the stack. So perhaps part of the fix is to update the GDB version
+ * distributed.
+ *  
+ */
+
 // extern void print_registers();
 
 /**
@@ -393,6 +425,15 @@ char *append32(char *p, uint32_t n) {
  */
 int process_g(const char *cmd, char *result) {
   // print_registers();
+
+  // See Notes above for explanation
+  uint32_t pc = debug.getRegister("pc");
+  uint32_t sp = debug.getRegister("sp");
+  if ((pc|1) == (uint32_t)&fake_breakpoint) {
+    pc = MAP_DUMMY_BREAKPOINT;
+    sp -= 4;
+  }
+
   result = append32(result, debug.getRegister("r0"));
   result = append32(result, debug.getRegister("r1"));
   result = append32(result, debug.getRegister("r2"));
@@ -406,15 +447,9 @@ int process_g(const char *cmd, char *result) {
   result = append32(result, debug.getRegister("r10"));
   result = append32(result, debug.getRegister("r11"));
   result = append32(result, debug.getRegister("r12"));
-  result = append32(result, debug.getRegister("sp"));
+  result = append32(result, sp);
   result = append32(result, debug.getRegister("lr"));
-
-  uint32_t pc = debug.getRegister("pc");
-  if ((pc|1) == (uint32_t)&fake_breakpoint) {
-    pc = MAP_DUMMY_BREAKPOINT;
-  }
   result = append32(result, pc);
-
   result = append32(result, debug.getRegister("cpsr"));
   *result = 0;
   return 0;
@@ -536,6 +571,17 @@ int process_m(const char *cmd, char *result) {
   if (isValidAddress(addr) == 0) {
     strcpy(result, "E01");
     return 0;
+  }
+
+  if (addr == MAP_DUMMY_BREAKPOINT) {
+    if (sz == 2) {
+      strcpy(result, "fbbe");
+      return 0;
+    }
+    else if (sz == 4) {
+      strcpy(result, "fbbe0000");
+      return 0;
+    }
   }
 
   uint8_t *m = (uint8_t *)addr;

@@ -600,8 +600,8 @@ void debug_monitor() {
     }
   }
 
-  // Adjust original SP to before the interrupt call to remove ISRs stack entries
-  // go GDB has correct stack frame
+  // Adjust original SP to before the interrupt call to remove ISR's stack entries
+  // so GDB has correct stack frame
   save_registers.sp += 20;
 
   if (callback) {
@@ -693,7 +693,7 @@ void debug_monitor() {
     "ldr r8, [r0, #48] \n" \
     "ldr r9, [r0, #52] \n" \
     "ldr r10, [r0, #56] \n" \
-    "ldr r11, [r0, #60] \n" \
+    "ldr r11, [r0, #60] \n"
 
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
@@ -732,15 +732,16 @@ void debug_call_isr() {
   debugenabled = 0;
   // Serial.print("restore regs=");Serial.println(debugrestore);
 
-  asm volatile("pop {r0}");
-  asm volatile("mov lr, r0");
   if (debugrestore) {
     debugrestore = 0;
+    asm volatile("pop {r12}");
     asm volatile(RESTORE_REGISTERS);
+    asm volatile("mov lr, r12");
+    asm volatile("bx lr");
   }
-  asm volatile("bx lr");
-
-  // asm volatile("pop {pc}");
+  else {
+    asm volatile("pop {pc}");
+  }
 }
 
 /**
