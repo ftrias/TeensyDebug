@@ -30,7 +30,7 @@
 
 #ifdef __IMXRT1062__
 #define RAM_START ((void*)0x00000020)
-#define RAM_END   ((void*)0x5FFFFFFF)
+#define RAM_END   ((void*)0x20280000)
 #endif
 
 

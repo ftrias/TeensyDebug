@@ -69,6 +69,17 @@ https://web.eecs.umich.edu/~prabal/teaching/eecs373-f10/readings/ARMv7-M_ARM.pdf
 #define ADDRESS_MASK  0xFFFFFFFE
 #define ADDRESS_MASK2 0xFFFFFFFC
 
+#define CPU_FLAG_FPCA 2
+
+#ifdef __MK20DX256__
+#define ISR_STACK_SIZE 8
+#endif
+
+#ifdef __IMXRT1062__
+// reserve space for 8 register, 16 floats, float stat and spacer
+#define ISR_STACK_SIZE (8+18)
+#endif
+
 /***********************************************
  * 
  * Breakpoint setup
@@ -91,7 +102,7 @@ int swdebug_clearBreakpoint(void *p) {
       sw_breakpoint_addr[i] = 0;
       uint16_t *memory = (uint16_t*)addr;
       *memory = sw_breakpoint_code[i];
-      // Serial.print("restore ");Serial.print(addr, HEX);Serial.print("=");Serial.println(*memory, HEX);
+      Serial.print("clear bkpt; restore ");Serial.print(addr, HEX);Serial.print("=");Serial.println(*memory, HEX);
       return 0;
     }
   }
@@ -105,7 +116,7 @@ int swdebug_setBreakpoint(void *p) {
       sw_breakpoint_addr[i] = (void*)addr;
       uint16_t *memory = (uint16_t*)addr;
       sw_breakpoint_code[i] = *memory;
-      // Serial.print("overwrite ");Serial.print(addr, HEX);Serial.print(" from ");Serial.println(*memory, HEX);
+      Serial.print("set brkt; overwrite ");Serial.print(addr, HEX);Serial.print(" from ");Serial.println(*memory, HEX);
       *memory = 0xdf10; // SVC 10
       return 0;
     }
@@ -462,19 +473,38 @@ uint32_t getRegisterNum(int x) {
   return 0;
 }
 
+int countBits(int x) {
+  return
+    ((x & (1<<0)) >> 0) +
+    ((x & (1<<1)) >> 1) +
+    ((x & (1<<2)) >> 2) +
+    ((x & (1<<3)) >> 3) +
+    ((x & (1<<4)) >> 4) +
+    ((x & (1<<5)) >> 5) +
+    ((x & (1<<6)) >> 6) +
+    ((x & (1<<7)) >> 7);
+}
+
 void *instructionReturn(void *p) {
   uint16_t inst = *(uint16_t*)p;
   uint16_t prefix = inst >> 8;
   // mov pc, Rx
+  // Serial.print("ret? prefix ");Serial.println(prefix);
   if (prefix == 0b01000110 && ((inst & 0b111) == 0b111)) {
     uint32_t reg = getRegisterNum((inst >> 3) & 0b111);
+    // Serial.print("mov pc ");Serial.println(reg);
     return (void*)reg;
   }
   if (prefix == 0b10111101) { // pop {Rxxx, pc}
+    int regs = countBits(inst & 0xFF);
     uint32_t *memory = (uint32_t*)save_registers.sp;
-    return (void*)memory[0]; 
+    // Serial.print("pop pc instr ");Serial.println(inst, HEX);
+    // Serial.print("regs ");Serial.println(regs);
+    // Serial.print("pop pc at ");Serial.println(memory[regs], HEX);
+    return (void*)memory[regs]; 
   }
   if (inst == 0x4770) { // bx lr
+    // Serial.print("bx lr=");Serial.println(save_registers.lr);
     return (void*)save_registers.lr; 
   }
   return 0;
@@ -483,25 +513,23 @@ void *instructionReturn(void *p) {
 void *instructionBranch(void *p, int *bx) {
   *bx = 0;
   uint16_t inst = *(uint16_t*)p;
-  // B conditional
-  if ((inst & 0xF000) == 0xD000) {
-    int8_t offset = inst & 0xFF;
-    return (void*)(save_registers.pc + offset);
+
+  // BX or BLX
+  if ((inst & 0xFF00) == 0x4700) {
+    int reg = (inst >> 3) & 0b1111;
+    uint32_t addr = getRegisterNum(reg);
+    *bx = 1;
+    // Serial.print("BX ");Serial.println(addr, HEX);
+    return (void*)(addr);
   }
   // B
-  else if ((inst & 0xF800) == 0xC000) {
+  if ((inst & 0xF800) == 0xC000) {
     int16_t offset = inst & 0x7F;
     if (offset & 0x400) { // sign extend negative number
       offset |= 0xF800;
     }
+    // Serial.print("B ");Serial.println(save_registers.pc + offset, HEX);
     return (void*)(save_registers.pc + offset);
-  }
-  // BX or BLX
-  else if ((inst & 0xFF00) == 0x4700) {
-    int reg = (inst >> 3) & 0b1111;
-    uint32_t addr = getRegisterNum(reg);
-    *bx = 1;
-    return (void*)(addr);
   }
   // BL prefix
   else if ((inst & 0xF800) == 0xF000) {
@@ -513,8 +541,14 @@ void *instructionBranch(void *p, int *bx) {
       offset |= 0xFFFE0000;
     }
     offset <<= 1;
-    // Serial.print("offset ");Serial.println(offset, HEX);
-    return (void*)(save_registers.pc + offset + 2);
+    // Serial.print("BL prefix ");Serial.println(save_registers.pc + offset + 4, HEX);
+    return (void*)(save_registers.pc + offset + 4);
+  }
+  // B conditional
+  else  if ((inst & 0xF000) == 0xD000) {
+    int8_t offset = inst & 0xFF;
+    // Serial.print("B cond ");Serial.println(save_registers.pc + offset, HEX);
+    return (void*)(save_registers.pc + offset);
   }
   return 0;
 }
@@ -601,8 +635,9 @@ void debug_monitor() {
   }
 
   // Adjust original SP to before the interrupt call to remove ISR's stack entries
-  // so GDB has correct stack frame
-  save_registers.sp += 20;
+  // so GDB has correct stack. The actual stack pointer will get restored
+  // to this value when the interrupt returns.
+  save_registers.sp += ISR_STACK_SIZE * 4;
 
   if (callback) {
     callback();
@@ -613,17 +648,18 @@ void debug_monitor() {
 
   debug_id = 0;
 
+  if (debugstep) {
+    // break at next instruction
+    setBreakPointNext(breakaddr, nextaddr);
+    debugstep = 0;
+    // the original breakpoint needs to be put back after next break
+    // debugreset = breakaddr;
+  }
+
   // if we need to reset the original, do so
   if (debugreset) {
     debug_setBreakpoint((void*)debugreset, 1);
     debugreset = 0;
-  }
-
-  if (debugstep) {
-    // break at next instruction
-    setBreakPointNext(breakaddr, nextaddr);
-    // the original breakpoint needs to be put back after next break
-    // debugreset = breakaddr;
   }
 }
 
@@ -708,8 +744,11 @@ void (*original_svc_isr)() = NULL;
  */
 __attribute__((noinline, naked))
 void debug_call_isr() {
+  __disable_irq();
   asm volatile(SAVE_STACK);
   asm volatile(SAVE_REGISTERS);
+  __enable_irq();
+  asm volatile("push {lr}");
   NVIC_CLEAR_PENDING(IRQ_SOFTWARE);
 
   // Are we in debug mode? If not, just jump to original ISR
@@ -718,6 +757,7 @@ void debug_call_isr() {
       // asm volatile("ldr r0, =original_software_isr");
       // asm volatile("ldr r0, [r0]");
       // asm volatile("mov pc, r0");
+      asm volatile("pop {lr}");
       asm volatile("mov pc, %0" : : "r" (original_software_isr));
     }
     return;
@@ -727,7 +767,6 @@ void debug_call_isr() {
     while(1) { yield(); }
   }
 
-  asm volatile("push {lr}");
   debug_monitor();              // process the debug event
   debugenabled = 0;
   // Serial.print("restore regs=");Serial.println(debugrestore);
@@ -735,7 +774,9 @@ void debug_call_isr() {
   if (debugrestore) {
     debugrestore = 0;
     asm volatile("pop {r12}");
+    __disable_irq();
     asm volatile(RESTORE_REGISTERS);
+    __enable_irq();
     asm volatile("mov lr, r12");
     asm volatile("bx lr");
   }
@@ -829,7 +870,7 @@ uint32_t debug_getRegister(const char *reg) {
       }
     }
     else if (reg[1] == '1') { // r10-r12
-      switch(reg[1]) {
+      switch(reg[2]) {
         case '0': return save_registers.r10;
         case '1': return save_registers.r11;
         case '2': return save_registers.r12;
@@ -862,7 +903,7 @@ int debug_setRegister(const char *reg, uint32_t value) {
       }
     }
     else if (reg[1] == '1') { // r10-r12
-      switch(reg[1]) {
+      switch(reg[2]) {
         case '0': save_registers.r10 = value; return 1;
         case '1': save_registers.r11 = value; return 1;
         case '2': save_registers.r12 = value; return 1;

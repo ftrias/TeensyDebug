@@ -58,8 +58,6 @@
  * devInit() is not standard. It must be called at initialization.
  * 
  */
-// #include <HardwareSerial.h>
-// #define dev Serial1
 
 Stream *dev = NULL;
 
@@ -404,7 +402,7 @@ char *append32(char *p, uint32_t n) {
  * with a "Assertion `get_frame_type (frame) == DUMMY_FRAME' failed."
  * I think the reason is because GDB changes SP by subtracting 4 before
  * calling the function. Unfortunately, this library doesn't support 
- * GDB changing SP. So I just hardcode subtracting 4 from SP and this
+ * GDB changing SP. So I just hardcode subtracting 8 from SP and this
  * seems to fool GDB.
  * 
  * Newer versions of GDB choose a different breakpoint location. Instead
@@ -431,7 +429,8 @@ int process_g(const char *cmd, char *result) {
   uint32_t sp = debug.getRegister("sp");
   if ((pc|1) == (uint32_t)&fake_breakpoint) {
     pc = MAP_DUMMY_BREAKPOINT;
-    sp -= 4;
+    sp -= 8;
+    Serial.print("Fake breakpoing sp=");Serial.println(sp, HEX);
   }
 
   result = append32(result, debug.getRegister("r0"));
@@ -568,7 +567,7 @@ int process_m(const char *cmd, char *result) {
 
   // Serial.print("read at ");Serial.println(addr, HEX);
 
-  if (isValidAddress(addr) == 0) {
+  if (isValidAddress(addr+sz-1) == 0) {
     strcpy(result, "E01");
     return 0;
   }
