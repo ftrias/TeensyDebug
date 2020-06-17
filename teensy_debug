@@ -78,7 +78,7 @@ def askUser(question):
     return True
   print(question)
   print("[y/N]? ", end='')
-  ask = input()
+  ask = sys.stdin.readline()
   if ask[0] == 'y' or ask[0] == 'Y':
     return True
   return False
@@ -88,7 +88,7 @@ def pauseUser():
   if args.has("y"):
     return
   print("Press Enter to close")
-  input()
+  sys.stdin.readline()
 
 def installGDB():
   global args
@@ -115,26 +115,31 @@ def installGDB():
       else:
         DIR = APPDIR + "Arduino.app/"    
     else:
-      DIR = expanduser("~") + "/arduino/"
+      DIR = os.readlink("/usr/local/bin/arduino")
+      DIR = os.path.dirname(DIR) + "/"
 
   while(True):
-    if os.path.exists(DIR + "hardware"):
+    if os.path.exists(DIR + "hardware/teensy"):
       TOOLS = DIR + "hardware/tools/"
       AVR = DIR + "hardware/teensy/avr/"
       break
-    elif os.path.exists(DIR + "Contents"):
+    elif os.path.exists(DIR + "Contents/Java/hardware/teensy"):
       TOOLS = DIR + "Contents/Java/hardware/tools/"
       AVR = DIR + "Contents/Java/hardware/teensy/avr/"
       break
     else:
-      print("Teensyduino not found in %s" % DIR)
+      if os.path.exists(DIR + "hardware"):
+        print("Arduino found in %s" % DIR)
+      print("Teensyduino not found inside %s" % DIR)
       print("Where is Arduino installed? ")
       print("? ", end='')
       DIR = input()
       DIR = DIR.strip() + "/"
 
   HOME = expanduser("~")
-  DEST = HOME + "/Documents/Arduino/libraries/"
+  DEST = HOME + "/Arduino/libraries/"
+  if not os.path.exists(DEST):
+    DEST = HOME + "/Documents/Arduino/libraries/"
 
   while(not os.path.exists(DEST)):
     print("Custom library folder not found in %s" % DEST)
@@ -169,22 +174,19 @@ def installGDB():
 
   createFiles(AVR)
 
-  home = expanduser("~")
-  dest = home + "/Documents/Arduino/libraries/TeensyDebug"
-
-  if not os.path.exists(dest):
-    os.makedirs(dest)
+  if not os.path.exists(DEST):
+    os.makedirs(DEST)
 
   for i in ("README.md", "library.properties", "keywords.txt", "license.txt", "TeensyDebug.h", "TeensyDebug.cpp", "gdbstub.cpp"):
-    print("Copy %s to %s" % (i, dest))
-    shutil.copy(i, dest)
+    print("Copy %s to %s" % (i, DEST))
+    shutil.copy(i, DEST)
 
-  print("Copy examples to %s" % (dest))
+  print("Copy examples to %s" % (DEST))
   try:
-    shutil.rmtree(dest + '/examples')
+    shutil.rmtree(DEST + '/examples')
   except:
     pass
-  shutil.copytree('examples', dest + '/examples')
+  shutil.copytree('examples', DEST + '/examples')
 
   print("\nInstallation complete\n")
 
@@ -399,7 +401,7 @@ def runOnMac(command):
 
 def runOnLinux(command):
   f = tempfile.NamedTemporaryFile("w", suffix=".sh", delete=False)
-  f.write("#!/bin/sh")
+  f.write("#!/bin/sh\n")
   f.write(command)
   f.write("\n")
   f.close()
