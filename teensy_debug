@@ -259,14 +259,13 @@ def getPort():
     # If taking over serial, return the passed in port
     if args.gdb == "2":
       usedev = "COM%d" % (comport)
-      return usedev
     #  it's the one
     # after the programming port in Dual Serial mode
-    if args.gdb == "1":
+    elif args.gdb == "1":
       usedev = "COM%d" % (comport+1)
-      return usedev
-    usedev = "COM%d" % (comport)
-    return usedev
+    else:
+      usedev = "COM%d" % (comport)
+    return "\\\\.\\"+usedev
 
   # If we're taking over the serial port, return what was passed in
   if args.gdb == "2":
