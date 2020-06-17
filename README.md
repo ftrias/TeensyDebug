@@ -13,7 +13,7 @@ This module provides breakpoint support for the Teensy 3/4 platform from PJRC wi
 Forum discussion: https://forum.pjrc.com/threads/61373-Using-GDB-with-Teensy-without-hardware-debugger-first-Beta?p=243249&posted=1#post243249
 
 GDB background
-===========================================
+-------------------------------------------
 
 GDB Remote Serial Protocol provides a simple interface between GDB and a remote target via a serial interface, such as a socket, pipe, UART, USB, etc.
 
@@ -60,12 +60,12 @@ void loop() {
 
 The `#pragma` will eliminate optimizations. If you don't use it, the compiler will inline `test_function()` and remove the symbol. It may also eliminate `mark` after realizing it serves no purpose.
 
-When you press Upload, the sketch will be compiled and uploaded to the Teensy. If you have enabled the menu options (see below for installation instructions), then GDB will come up in a new window. If not, follow the Manual instructions farther down.
+When you press Upload, the sketch will be compiled and uploaded to the Teensy. If you have enabled the menu options (see below for installation instructions), GDB will come up in a new window. If not, follow the Manual instructions farther down.
 
 Installing
 -------------------------------------------
 
-There is an installers Mac, Linux and Windows. The installer does these things:
+There is an installer for Mac, Linux and Windows. The installer does these things:
 
 1. Create a directory named TeensyDebug in your library and copy source files there.
 2. Customize IDE by copying customized `boards.local.txt` and `platform.local.txt` to `hardware/teensy/avr` directory. These files create the menu options and cause `teensy_debug` to be used to upload the program and run GDB.
@@ -173,7 +173,7 @@ These are the commands implemented so far:
 File IO command
 -------------------------------------------
 
-GDB supports the target writing files in the PCs file system. This is suppored by the `debug.file_*` option. They follow the standard Posix conventions. If a function returns a negative number, it means failure: The methods of `debug` are:
+GDB supports the target writing files in the PC's file system. This is suppored by the `debug.file_*()` menthods. They follow the standard Posix conventions. If a function returns a negative number, it means failure: The methods of `debug` are:
 
 * `int file_errno()`
 * `int file_open(const char *file, int flags = O_CREAT | O_RDWR, int mode = 0644)`
@@ -231,8 +231,6 @@ Future considerations
 The `teensy_debug` script should be ported to Windows and Linux. Or better yet, integrate it with `teensy_post_compile`.
 
 The serial connection can be anything that supports reading and writing ASCII in sequence. To start it's probably best to use a UART or USB Serial but in theory it could also be CAN, network socket, USB Raw, MIDI, etc.
-
-GDB can accept "file" commands from Teensy. Thus, teensy could send commands to open, read and write files on the host PC running GDB. This could be useful in many applications.
 
 Right now, GDB runs in a separate window. But in the future, GDB could be piped to Arduino's serial monitor. Both GDB's output and Teensy's serial output could be sent to the display. GDB can receive commands from the Send window.
 
