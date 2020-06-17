@@ -71,13 +71,11 @@ https://web.eecs.umich.edu/~prabal/teaching/eecs373-f10/readings/ARMv7-M_ARM.pdf
 
 #define CPU_FLAG_FPCA 2
 
-#ifdef __MK20DX256__
-#define ISR_STACK_SIZE 8
-#endif
-
-#ifdef __IMXRT1062__
+#ifdef __ARM_PCS_VFP
 // reserve space for 8 register, 16 floats, float stat and spacer
-#define ISR_STACK_SIZE (8+18)
+#define ISR_STACK_SIZE ((8+16+1+1)*4)
+#else
+#define ISR_STACK_SIZE (8*4)
 #endif
 
 /***********************************************
@@ -637,7 +635,7 @@ void debug_monitor() {
   // Adjust original SP to before the interrupt call to remove ISR's stack entries
   // so GDB has correct stack. The actual stack pointer will get restored
   // to this value when the interrupt returns.
-  save_registers.sp += ISR_STACK_SIZE * 4;
+  save_registers.sp += ISR_STACK_SIZE;
 
   if (callback) {
     callback();

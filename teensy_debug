@@ -34,9 +34,12 @@ try:
 except:
   customRun = None
 
+#####################################
 #
 # Process args in style of teensy_post_compile
 #
+#####################################
+
 class args:
   def set(self, k, v):
     self.__dict__[k] = v
@@ -62,7 +65,16 @@ def parseCommandLine(x=None):
       ret.set(name, 1)
   return ret
 
+#####################################
+#
+# Installation code
+#
+#####################################
+
 def askUser(question):
+  global args
+  if args.has("y"):
+    return True
   print(question)
   print("[y/N]? ", end='')
   ask = input()
@@ -71,8 +83,11 @@ def askUser(question):
   return False
 
 def pauseUser():
-    print("Press Enter to close")
-    input()
+  global args
+  if args.has("y"):
+    return
+  print("Press Enter to close")
+  input()
 
 def installGDB():
   global args
@@ -207,6 +222,13 @@ tools.gdbtool.upload.params.verbose=-verbose
 tools.gdbtool.upload.pattern="{cmd.path}/teensy_debug" "-gdb={build.gdb}" "-file={build.project_name}" "-path={build.path}" "-tools={cmd.path}" "-board={build.board}" -reboot "-port={serial.port}" "-portlabel={serial.port.label}" "-portprotocol={serial.port.protocol}"
 """)
 
+
+#####################################
+#
+# Execution code
+#
+#####################################
+
 def getPort():
   global args
 
@@ -228,8 +250,11 @@ def getPort():
   # is any port that we are not using for programming and serial monitor. Probably
   # should be smarter
   out = subprocess.Popen([args.tools + '/teensy_ports'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+  # wait for results
   time.sleep(2)
+  # program stays on indefinitely, must kill it
   out.kill()
+  # get output to parse
   stdout,stderr = out.communicate()
 
   devs = []
@@ -242,7 +267,7 @@ def getPort():
     dev = a[1][1:].split(' ')[0]
     # if using dual serials and it's the programming port, ignore it
     if args.gdb == "1" and dev == args.port: continue
-    print(dev)
+    # print(dev)
     devs.append(dev)
 
   if len(devs) <= 0:
@@ -251,25 +276,31 @@ def getPort():
 
   # get the last port found
   usedev = sorted(devs)[-1]
-  print("Found devices", usedev)
+  if len(devs)==1:
+    usedev = devs[0]
+    print("Using device", usedev)
+  else:
+    usedev = sorted(devs)[-1]
+    print("Using device", usedev, "from available", devs)
+
   return usedev
 
 def runGDB(arguments):
   global args
 
+  # just install
   if args.has("i"): 
     installGDB()
     exit(0)
 
+  # create boards.local.txt, etc.
   if args.has("c"): 
     createFiles("./")
     exit(0)
 
-  # gpath=args.tools + "/arm/bin/"
-  # GDB="%s/arm-none-eabi-gdb-py" % gpath
-  ELF="%s/%s.elf" % (args.path, args.file)
+  elf = convertPathSlashes("%s/%s.elf" % (args.path, args.file))
 
-  # build commandline for programming Teensy
+  # run command for programming Teensy
   post = convertPathSlashes('%s/teensy_post_compile' % args.tools)
   if os.name == 'nt':
     x = subprocess.run([post] + arguments)
@@ -291,22 +322,22 @@ def runGDB(arguments):
     return
 
   usedev = getPort()
-
   if usedev is None:
     return
 
-  gpath=args.tools + "/arm/bin/"
-  GDB=convertPathSlashes("%s/arm-none-eabi-gdb" % gpath)
+  gpath = args.tools + "/arm/bin/"
+  GDB = convertPathSlashes("%s/arm-none-eabi-gdb" % gpath)
 
   if not customRun is None:
-    customRun(GDB, usedev, ELF)
+    customRun(GDB, usedev, elf)
     return
 
   if args.gdb == "3":
-    gdbcommand = '"%s" "%s"' % (GDB, ELF)
+    gdbcommand = '"%s" "%s"' % (GDB, elf)
   else:
-    gdbcommand = '"%s" -ex "target extended-remote %s" "%s"' % (GDB, usedev, ELF)
+    gdbcommand = '"%s" -ex "target extended-remote %s" "%s"' % (GDB, usedev, elf)
 
+  print("RUN:", gdbcommand)
   runCommand(gdbcommand)
 
 def convertPathSlashes(f):
