@@ -28,6 +28,11 @@ import stat
 import shutil
 from os.path import expanduser
 
+try:
+  import customize
+  customRun = customize.customRun
+except:
+  customRun = None
 
 #
 # Process args in style of teensy_post_compile
@@ -292,6 +297,10 @@ def runGDB(arguments):
 
   gpath=args.tools + "/arm/bin/"
   GDB=convertPathSlashes("%s/arm-none-eabi-gdb" % gpath)
+
+  if not customRun is None:
+    customRun(GDB, usedev, ELF)
+    return
 
   if args.gdb == "3":
     gdbcommand = '"%s" "%s"' % (GDB, ELF)
