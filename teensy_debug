@@ -27,6 +27,7 @@ import tempfile
 import stat
 import shutil
 from os.path import expanduser
+import glob
 
 try:
   import customize
@@ -235,16 +236,58 @@ def getPort():
   usedev = None
 
   # wait for Teensy to come online
-  for i in range(5):
+  for i in range(10):
     out = subprocess.Popen([args.tools + '/teensy_ports', '-L'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout, stderr = out.communicate()
-    if len(stdout) > 10: break
-    time.sleep(1)
+    if len(stdout) > 10: 
+      info = stdout.decode().split(' ')
+      # print("dev", info)
+      dev = info[1]
+      if dev != '[no_device]':
+        break
+    time.sleep(0.5)
 
   # counldn't find it within timeout?
   if len(stdout) < 10:
     print("Could not find Teensy")
-    exit(1)
+    return None
+
+  # For Windows, com port determination is complex so I'll just guess
+  if os.name == 'nt':
+    p = re.match(r'COM(\d+)', dev.upper())
+    comport = int(p.group(1))
+    # If taking over serial, return the passed in port
+    if args.gdb == "2":
+      usedev = "COM%d" % (comport)
+      return usedev
+    #  it's the one
+    # after the programming port in Dual Serial mode
+    if args.gdb == "1":
+      usedev = "COM%d" % (comport+1)
+      return usedev
+    usedev = "COM%d" % (comport)
+    return usedev
+
+  # If we're taking over the serial port, return what was passed in
+  if args.gdb == "2":
+    return dev
+
+  p = re.search(r'^([^\d]+)(\d+)$', dev)
+  if p is None:
+    print("Could not find serial port id in ", dev)
+    return None
+
+  # For Mac/Linux, find the file pattern for serial devices, list them all
+  # and pick the one after our programming port
+  prefix = p.group(1)
+  found = False
+  for n in glob.glob(prefix + "*"):
+    if n == dev:
+      found = True
+    elif found:
+      return n
+
+  return None
 
   # Get the port status and find the right port to connect with. The right port
   # is any port that we are not using for programming and serial monitor. Probably
