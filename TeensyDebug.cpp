@@ -102,7 +102,7 @@ int swdebug_clearBreakpoint(void *p) {
       sw_breakpoint_addr[i] = 0;
       uint16_t *memory = (uint16_t*)addr;
       *memory = sw_breakpoint_code[i];
-      Serial.print("clear bkpt; restore ");Serial.print(addr, HEX);Serial.print("=");Serial.println(*memory, HEX);
+      // Serial.print("clear bkpt; restore ");Serial.print(addr, HEX);Serial.print("=");Serial.println(*memory, HEX);
       return 0;
     }
   }
@@ -116,7 +116,7 @@ int swdebug_setBreakpoint(void *p) {
       sw_breakpoint_addr[i] = (void*)addr;
       uint16_t *memory = (uint16_t*)addr;
       sw_breakpoint_code[i] = *memory;
-      Serial.print("set brkt; overwrite ");Serial.print(addr, HEX);Serial.print(" from ");Serial.println(*memory, HEX);
+      // Serial.print("set brkt; overwrite ");Serial.print(addr, HEX);Serial.print(" from ");Serial.println(*memory, HEX);
       *memory = 0xdf10; // SVC 10
       return 0;
     }

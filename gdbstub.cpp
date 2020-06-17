@@ -47,7 +47,7 @@
 #define GDB_DEBUG_INTERNAL
 #include "TeensyDebug.h"
 
-#define GDB_DEBUG_COMMANDS
+// #define GDB_DEBUG_COMMANDS
 
 #define GDB_POLL_INTERVAL_MICROSEC 500
 
@@ -430,7 +430,7 @@ int process_g(const char *cmd, char *result) {
   if ((pc|1) == (uint32_t)&fake_breakpoint) {
     pc = MAP_DUMMY_BREAKPOINT;
     sp -= 8;
-    Serial.print("Fake breakpoing sp=");Serial.println(sp, HEX);
+    // Serial.print("Fake breakpoint sp=");Serial.println(sp, HEX);
   }
 
   result = append32(result, debug.getRegister("r0"));
