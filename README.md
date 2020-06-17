@@ -2,11 +2,11 @@ Live debugging on Teensy & GDB support
 ===========================================
 By Fernando Trias, June 2020
 
-This module provides breakpoint support for the Teensy 3/4 platform from PJRC without need for an external debug interface. The module provides two features:
+This module provides breakpoint support for the Teensy 3/4 platform from PJRC without need for an external debug interface. The module provides:
 
-1. Ability to set/clear breakpoints and query registers from within Teensy code.
+1. GDB Remote Serial Protocol stub so that GDB can connect to the Teensy and perform live debugging.
 
-2. GDB Remote Serial Protocol stub so that GDB can connect to the Teensy and perform live debugging.
+2. Ability to set/clear breakpoints and query registers and memory.
 
 3. Catch hard crashes and display diagnosics.
 
@@ -15,16 +15,18 @@ Forum discussion: https://forum.pjrc.com/threads/61373-Using-GDB-with-Teensy-wit
 GDB background
 ===========================================
 
-GDB Remote Serial Protocol stubs provide a simple interface between GDB and a remote target via a serial interface, such as a socket, pipe, UART, USB, etc. It works like this:
+GDB Remote Serial Protocol provides a simple interface between GDB and a remote target via a serial interface, such as a socket, pipe, UART, USB, etc.
 
 ```
 [PC running GDB] <--(serial)--> [Teensy GDB stub]
 ```
 
-Since Teensduino comes with a GDB executable for ARM processors, there is no need to install it. Run the installer (see below) to create a new menu in Arduino that will enable GDB.
+Since Teensduino comes with a GDB executable for ARM processors, there is no need to install it. This module comes with an installer (see below) that will create a new menu in Arduino that will enable GDB. However, it can also be used stand-alone.
 
 Sample code and usage
 -------------------------------------------
+
+This sketch is compiled using the Dual USB option.
 
 ```C++
 #include "TeensyDebug.h"
@@ -58,17 +60,18 @@ void loop() {
 
 The `#pragma` will eliminate optimizations. If you don't use it, the compiler will inline `test_function()` and remove the symbol. It may also eliminate `mark` after realizing it serves no purpose.
 
+When you press Upload, the sketch will be compiled and uploaded to the Teensy. If you have enabled the menu options (see below for installation instructions), then GDB will come up in a new window. If not, follow the Manual instructions farther down.
+
 Installing
 -------------------------------------------
 
-There are installers for Mac, Linux and Windows. The installer does these things:
+There is an installers Mac, Linux and Windows. The installer does these things:
 
 1. Create a directory named TeensyDebug in your library and copy source files there.
-2. Customize IDE configuration
-   (a) Copy customized `boards.local.txt` and `platform.local.txt` to `hardware/teensy/avr` directory. These files create the menu options and cause `teensy_debug` to be used to upload the program and run GDB.
-3. Copy teensy_debug for your platform to the `hardware/tools` directory.
+2. Customize IDE by copying customized `boards.local.txt` and `platform.local.txt` to `hardware/teensy/avr` directory. These files create the menu options and cause `teensy_debug` to be used to upload the program and run GDB.
+3. Copy the `teensy_debug` for your platform to the `hardware/tools` directory.
 
-You can either do these things by hand or use the installer app for your platform as described below.
+You can also do these things by hand and not use installer app for your platform.
 
 Installing on Mac
 -------------------------------------------
