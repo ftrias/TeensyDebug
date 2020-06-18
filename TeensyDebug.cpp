@@ -1160,6 +1160,6 @@ int Debug::clearBreakpoint(void *p, int n) { return debug_clearBreakpoint(p, n);
 void Debug::setCallback(void (*c)()) { callback = c; }
 uint32_t Debug::getRegister(const char *reg) { return debug_getRegister(reg); }
 int Debug::setRegister(const char *reg, uint32_t value) { return debug_setRegister(reg, value); }
-int Debug::restoreRunMode() { return debug_restoreRunMode(); }
+// int Debug::restoreRunMode() { return debug_restoreRunMode(); }
 
 Debug debug;

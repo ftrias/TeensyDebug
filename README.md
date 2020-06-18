@@ -156,6 +156,55 @@ Program received signal SIGTRAP, Trace/breakpoint trap.
 (gdb) 
 ```
 
+Methods of `debug` object
+-------------------------------------------
+
+The library exports an object named `debug` of class `Debug`. Class `Debug` has a number of methods for manipulating the debugging system. In addition, class `Debug` inherits from `Print` so you can output messages to the GDB console.
+
+* `int begin(Stream *device = NULL)`: Initialize the debugging system and use the given device to communicate with GDB. The device must inherit from `Stream`, such as any Serial device.
+
+* `int begin(Stream &device)`: Same as above, but take reference as parameter.
+
+* `int setBreakpoint(void *p, int n=1)`: Set a breakpoint at address.
+
+* `int clearBreakpoint(void *p, int n=1)`: Clear breakpoint at address.
+
+* `void setCallback(void (*c)())`: Set a custom callback function when breakpoint it reached.
+
+* `uint32_t getRegister(const char *reg)`: Get the value of a register.
+
+* `int setRegister(const char *reg, uint32_t value)`: Set a register for when execution resumes.
+
+* `int isGDBConnected()`: Return 1 if GDB has connected. 0 otherwise.
+
+Because `Debug` inherits from `Print`, it supports the usual print functions, such as `print`, `println`, `write`, etc.
+
+GDB supports the target writing files in the PC's file system. This is suppored by the `debug.file_*()` menthods. They follow the standard Posix conventions. If a function returns a negative number, it means failure: The methods of `debug` are:
+
+* `int file_errno()`
+
+* `int file_open(const char *file, int flags = O_CREAT | O_RDWR, int mode = 0644)`
+
+* `int file_close(int fd)`
+
+* `int file_read(int fd, void *buf, unsigned int count)`
+
+* `int file_write(int fd, const void *buf, unsigned int count)`
+
+* `int file_system(const char *buf)`
+
+For example:
+```C++
+int fd = debug.file_open("/tmp/test.out");
+if (fd < 0) {
+  Serial.println(debug.file_errno());
+}
+else {
+  debug.file_write(fd, "abc", 3);
+  debug.file_close(fd);
+}
+```
+
 Special GDB commands
 -------------------------------------------
 
@@ -170,29 +219,6 @@ These are the commands implemented so far:
 * `restart` -> reboot Teensy
 * `call(addr [,p1 [,p2 [,p3]]])` -> call a function at address. The function takes only integers (or pointers) as parameters (up to 3) and returns an integer that is displayed back to the user. Address must be numeric. You can get the address of a function with the `p` command as in `p funcname`. For example if `int fx(int x)` is located at `0xc8`, as shown by `p fx`, then the command to return `fx(5)` would be `monitor call(0xc8,5)`. Instead of this, you may want to use GDB's `p` with a function call, as in `p fx(1)`
 
-File IO command
--------------------------------------------
-
-GDB supports the target writing files in the PC's file system. This is suppored by the `debug.file_*()` menthods. They follow the standard Posix conventions. If a function returns a negative number, it means failure: The methods of `debug` are:
-
-* `int file_errno()`
-* `int file_open(const char *file, int flags = O_CREAT | O_RDWR, int mode = 0644)`
-* `int file_close(int fd)`
-* `int file_read(int fd, void *buf, unsigned int count)`
-* `int file_write(int fd, const void *buf, unsigned int count)`
-* `int file_system(const char *buf)`
-
-For example:
-```C++
-int fd = debug.file_open("/tmp/test.out");
-if (fd < 0) {
-  Serial.println(debug.file_errno());
-}
-else {
-  debug.file_write(fd, "abc", 3);
-  debug.file_close(fd);
-}
-```
 
 Internal workings
 ===========================================

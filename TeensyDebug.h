@@ -117,7 +117,7 @@ public:
   void setCallback(void (*c)());
   uint32_t getRegister(const char *reg);
   int setRegister(const char *reg, uint32_t value);
-  int restoreRunMode();
+  // int restoreRunMode();
   int isGDBConnected() { return gdb_active_flag; }
 
   virtual size_t write(uint8_t b) { 
