@@ -74,6 +74,7 @@ int hcdebug_setBreakpoint(int n);
 size_t gdb_out_write(const uint8_t *msg, size_t len);
 int gdb_file_io(const char *msg);
 extern int file_io_errno;
+extern int gdb_active_flag;
 
 #define O_CREAT         0x200
 #define O_APPEND        8
@@ -117,6 +118,7 @@ public:
   uint32_t getRegister(const char *reg);
   int setRegister(const char *reg, uint32_t value);
   int restoreRunMode();
+  int isGDBConnected() { return gdb_active_flag; }
 
   virtual size_t write(uint8_t b) { 
     return write(&b, 1);

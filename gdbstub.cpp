@@ -953,6 +953,8 @@ int process_k(const char *cmd, char *result) {
   return 0;
 }
 
+int gdb_active_flag = 0;
+
 /**
  * @brief Process a command by calling appropriate delegation function
  * 
@@ -961,6 +963,7 @@ int process_k(const char *cmd, char *result) {
  * @return int 0
  */
 int processCommand(const char *cmd, char *result) {
+  gdb_active_flag = 1;
   switch(cmd[0]) {
     case 'g': return process_g(cmd, result);
     case 'G': return process_G(cmd, result);
