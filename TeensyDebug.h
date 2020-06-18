@@ -103,7 +103,16 @@ public:
     return gdb_file_io(gdb_io);
   }
   int file_system(const char *buf) {
-    sprintf(gdb_io, "Fsystem,%x/%x", (unsigned int)buf, strlen(buf));
+    if (*buf == 0) {
+      // if we send empty string, return if shell enabled or not
+      // to enable in gdb, use:
+      //    set remote system-call-allowed 1
+      sprintf(gdb_io, "Fsystem,0/0", (unsigned int)buf, strlen(buf));
+    }
+    else {
+      // make sure to add string terminator
+      sprintf(gdb_io, "Fsystem,%x/%x", (unsigned int)buf, strlen(buf)+1);
+    }
     return gdb_file_io(gdb_io);
   }
 };

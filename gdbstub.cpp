@@ -325,6 +325,18 @@ size_t gdb_out_print(const char *msg) {
   return gdb_out_write((const uint8_t *)msg, strlen(msg));
 }
 
+int gdb_wait_for_flag(int *flag, int timeout) {
+  unsigned int endtime = millis()+1000;
+  while(*flag) {
+    if (timeout && millis() > endtime) {
+      return -1;
+    }
+    delay(1);
+    yield();
+  }
+  return 0;
+}
+
 int file_io_result;
 int file_io_errno;
 int file_io_pending = 0;
@@ -333,10 +345,7 @@ int gdb_file_io(const char *cmd) {
   // Serial.println(cmd);
   file_io_pending = 1;
   sendResult(cmd);
-  while(file_io_pending) {
-    delay(1);
-    yield();
-  }
+  gdb_wait_for_flag(&file_io_pending, 1000);
   // Serial.println(file_io_result);
   return file_io_result;
 }
@@ -349,13 +358,10 @@ int gdb_file_io(const char *cmd) {
 #pragma GCC optimize ("O0")
 void process_onbreak() {
   // send the signal
+  halt_state = 1;
   sendResult(signal_text[debug_id]);
   // go into halt state and stay until flag is cleared
-  halt_state = 1;
-  while(halt_state) {
-    delay(1);
-    yield();
-  }
+  gdb_wait_for_flag(&halt_state, 0);
   debug_id = 0;
 }
 

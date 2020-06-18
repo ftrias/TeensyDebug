@@ -191,7 +191,7 @@ GDB supports the target writing files in the PC's file system. This is suppored 
 
 * `int file_write(int fd, const void *buf, unsigned int count)`
 
-* `int file_system(const char *buf)`
+* `int file_system(const char *buf)`: System calls are disabled by default in GDB. To enable, use the GDB command `set remote system-call-allowed 1`
 
 For example:
 ```C++
