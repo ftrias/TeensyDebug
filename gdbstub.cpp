@@ -359,8 +359,12 @@ void process_onbreak() {
   debug_id = 0;
 }
 
+uint32_t fakesp;
+
 __attribute__((noinline, naked))
 void fake_breakpoint() {
+  // asm volatile("ldr r0, =fakesp");
+  // asm volatile("str sp, [r0]");
   asm volatile("svc 0x10");
 }
 #pragma GCC pop_options
@@ -429,7 +433,10 @@ int process_g(const char *cmd, char *result) {
   uint32_t sp = debug.getRegister("sp");
   if ((pc|1) == (uint32_t)&fake_breakpoint) {
     pc = MAP_DUMMY_BREAKPOINT;
-    sp -= 8;
+    // Serial.print("sp fake:");Serial.println(fakesp, HEX);
+    // Serial.print("sp:");Serial.println(sp, HEX);
+    // delay(1000);
+    sp = fakesp;
     // Serial.print("Fake breakpoint sp=");Serial.println(sp, HEX);
   }
 
@@ -495,7 +502,7 @@ int process_P(const char *cmd, char *result) {
   int reg = hex(*cmd++);
   cmd++; // skip =
   uint32_t val = hex32ToInt(&cmd);
-  // Serial.print("Reg ");Serial.print(reg);Serial.print("=");Serial.println(val, HEX);
+  Serial.print("Reg ");Serial.print(reg);Serial.print("=");Serial.println(val, HEX);
   switch(reg) {
     case 0: debug.setRegister("r0", val); break;
     case 1: debug.setRegister("r1", val); break;
@@ -510,10 +517,15 @@ int process_P(const char *cmd, char *result) {
     case 10: debug.setRegister("r10", val); break;
     case 11: debug.setRegister("r11", val); break;
     case 12: debug.setRegister("r12", val); break;
-    case 13: debug.setRegister("sp", val); break;
+    case 13:
+      if (debug.getRegister("lr") == (uint32_t)&fake_breakpoint) {
+        fakesp = val; // gdb changes sp, and we need to return it later
+      }
+      debug.setRegister("sp", val); break;
     case 14:
       if (val == (MAP_DUMMY_BREAKPOINT|1)) { // special breakpoint
         debug.setRegister("lr", (uint32_t)&fake_breakpoint);
+        fakesp = debug.getRegister("sp"); // just in case not set later
       }
       else {
         debug.setRegister("lr", val);

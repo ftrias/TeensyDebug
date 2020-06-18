@@ -794,6 +794,16 @@ void debug_call_isr_setup() {
   NVIC_SET_PENDING(IRQ_SOFTWARE); 
 }
 
+uint16_t lastpc;
+
+int testOurSVC() {
+  uint16_t *memory = (uint16_t*)(lastpc);
+  if ((*memory) & 0xFFF0 == 0xdf10|| debug_isBreakpoint(memory)) {
+    return 1;
+  }
+  return 0;
+}
+
 /**
  * @brief SVC handler. Save registers and handle breakpoint.
  * 
@@ -801,8 +811,16 @@ void debug_call_isr_setup() {
 __attribute__((noinline, naked))
 void svcall_isr() {
 #if 0
-  uint8_t *memory = (uint8_t*)(stack->pc - 2);
-  if ((*memory) & 0xFFF0 == 0xdf10|| debug_isBreakpoint(memory)) {
+  // get the PC that triggered this
+  // subtract width of svc instruction (which is 2)
+  // is it one of our svcs?
+  asm volatile(
+    "ldr r0, [sp, #24] \n"
+    "sub r0, #2 \n"
+    "ldr r1, =lastpc \n"
+    "str r0, [r1]"
+  );
+  if (testOurSVC()) {
     asm volatile("push {lr}");
     debug_call_isr_setup();
     asm volatile("pop {pc}");
@@ -811,6 +829,7 @@ void svcall_isr() {
     if (original_svc_isr) {
       asm volatile("mov pc, %0" : : "r" (original_svc_isr));
     }
+    asm volatile("bx lr");
   }
 #else
   asm volatile("push {lr}");
@@ -1066,7 +1085,7 @@ void debug_init() {
   original_svc_isr = _VectorsRam[11];
   _VectorsRam[11] = svcall_isr;
 
-  // chaing the software ISR handler
+  // chain the software ISR handler
   original_software_isr = _VectorsRam[IRQ_SOFTWARE + 16];
   _VectorsRam[IRQ_SOFTWARE + 16] = debug_call_isr;
   NVIC_SET_PRIORITY(IRQ_SOFTWARE, 208); // 255 = lowest priority

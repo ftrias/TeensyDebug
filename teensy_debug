@@ -104,6 +104,7 @@ def installGDB():
   else:
     EXT = ""
 
+  # find the Arduino directory
   if args.has("i") and args.i != 1:
     DIR = args.i
   else:
@@ -138,6 +139,7 @@ def installGDB():
       DIR = input()
       DIR = DIR.strip() + "/"
 
+  # find the custom library folder
   HOME = expanduser("~")
   DEST = HOME + "/Arduino/libraries/"
   if not os.path.exists(DEST):
@@ -152,6 +154,7 @@ def installGDB():
 
   DEST += "TeensyDebug/"
 
+  # confirm locations
   print("Teensyduino found in %s" % DIR)
   print("Teensyduino tools in %s" % TOOLS)
   print("Teensyduino custom library in %s" % DEST)
@@ -256,6 +259,11 @@ def getPort():
     print("Could not find Teensy")
     return None
 
+  if args.port.startswith("/dev/tty"):
+    dev = args.port
+  if args.port.upper().startswith("COM"):
+    dev = args.port
+
   # For Windows, com port determination is complex so I'll just guess
   if os.name == 'nt':
     p = re.match(r'COM(\d+)', dev.upper())
@@ -284,7 +292,7 @@ def getPort():
   # and pick the one after our programming port
   prefix = p.group(1)
   found = False
-  for n in glob.glob(prefix + "*"):
+  for n in sorted(glob.glob(prefix + "*")):
     if n == dev:
       found = True
     elif found:
@@ -431,7 +439,12 @@ def runCommand(command):
   else:
     runOnLinux(command)
 
+#
+# Main code
+#
+
 args = parseCommandLine(sys.argv[1:])
+
 if len(sys.argv)==1:
   try:
     installGDB()
