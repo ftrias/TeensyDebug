@@ -794,15 +794,17 @@ void debug_call_isr_setup() {
   NVIC_SET_PENDING(IRQ_SOFTWARE); 
 }
 
-uint16_t lastpc;
+#if 0
+uint32_t lastpc;
 
 int testOurSVC() {
   uint16_t *memory = (uint16_t*)(lastpc);
-  if ((*memory) & 0xFFF0 == 0xdf10|| debug_isBreakpoint(memory)) {
+  if (((*memory) & 0xFFF0) == 0xdf10 || debug_isBreakpoint(memory)) {
     return 1;
   }
   return 0;
 }
+#endif
 
 /**
  * @brief SVC handler. Save registers and handle breakpoint.
