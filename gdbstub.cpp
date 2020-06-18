@@ -500,9 +500,9 @@ int process_P(const char *cmd, char *result) {
   // return 0;
   cmd++;
   int reg = hex(*cmd++);
-  cmd++; // skip =
+  cmd++; // skip '='
   uint32_t val = hex32ToInt(&cmd);
-  Serial.print("Reg ");Serial.print(reg);Serial.print("=");Serial.println(val, HEX);
+  // Serial.print("Reg ");Serial.print(reg);Serial.print("=");Serial.println(val, HEX);
   switch(reg) {
     case 0: debug.setRegister("r0", val); break;
     case 1: debug.setRegister("r1", val); break;
