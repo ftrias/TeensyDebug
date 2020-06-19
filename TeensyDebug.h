@@ -107,7 +107,7 @@ public:
       // if we send empty string, return if shell enabled or not
       // to enable in gdb, use:
       //    set remote system-call-allowed 1
-      sprintf(gdb_io, "Fsystem,0/0", (unsigned int)buf, strlen(buf));
+      sprintf(gdb_io, "Fsystem,0/0");
     }
     else {
       // make sure to add string terminator

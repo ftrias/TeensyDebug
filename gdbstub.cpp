@@ -325,7 +325,7 @@ size_t gdb_out_print(const char *msg) {
   return gdb_out_write((const uint8_t *)msg, strlen(msg));
 }
 
-int gdb_wait_for_flag(int *flag, int timeout) {
+int gdb_wait_for_flag(volatile int *flag, int timeout) {
   unsigned int endtime = millis()+1000;
   while(*flag) {
     if (timeout && millis() > endtime) {
@@ -339,7 +339,7 @@ int gdb_wait_for_flag(int *flag, int timeout) {
 
 int file_io_result;
 int file_io_errno;
-int file_io_pending = 0;
+volatile int file_io_pending = 0;
 
 int gdb_file_io(const char *cmd) {
   // Serial.println(cmd);

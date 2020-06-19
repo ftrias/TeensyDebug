@@ -733,8 +733,9 @@ void debug_monitor() {
 #pragma GCC optimize ("O0")
 
 void (*original_software_isr)() = NULL;
+#if 0
 void (*original_svc_isr)() = NULL;
-
+#endif
 /**
  * @brief Called by software interrupt. Perform chaining or
  * call handler.
@@ -751,6 +752,7 @@ void debug_call_isr() {
 
   // Are we in debug mode? If not, just jump to original ISR
   if (debugenabled == 0) {
+#if 0
     if (original_software_isr) {
       // asm volatile("ldr r0, =original_software_isr");
       // asm volatile("ldr r0, [r0]");
@@ -758,6 +760,7 @@ void debug_call_isr() {
       asm volatile("pop {lr}");
       asm volatile("mov pc, %0" : : "r" (original_software_isr));
     }
+#endif
     return;
   }
 
@@ -1084,12 +1087,14 @@ void debug_init() {
   _VectorsRam[5] = call_bus_fault_isr;
   _VectorsRam[6] = call_usage_fault_isr;
 
+#if 0
   if (_VectorsRam[11] == unused_isr) {
     original_svc_isr = 0;
   }
   else {
     original_svc_isr = _VectorsRam[11];
   }
+#endif
   _VectorsRam[11] = svcall_isr;
 
   // chain the software ISR handler
