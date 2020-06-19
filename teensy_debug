@@ -164,7 +164,9 @@ def installGDB():
     return 0
 
   if os.path.exists(DEST):
-    print("Already installed. Overwriting.")
+    print("Already installed. Updating.")
+
+  createFiles(AVR)
 
   # shutil.copy("run.command", TOOLS)
   if EXT == ".exe":
@@ -176,8 +178,6 @@ def installGDB():
   else:
     print("Copy teensy_debug to %s" % TOOLS)
     shutil.copy("teensy_debug", TOOLS + "teensy_debug")
-
-  createFiles(AVR)
 
   if not os.path.exists(DEST):
     os.makedirs(DEST)
@@ -196,8 +196,18 @@ def installGDB():
   print("\nInstallation complete\n")
 
 def createFiles(AVR):
-  print("Create %s/boards.local.txt" % (AVR))
-  with open(AVR + "boards.local.txt", "w+") as f:
+  mode = "w"
+  board = AVR + "boards.local.txt"
+  if os.path.exists(board):
+    ask = askUser("File %s already exists. Would you like to overwrite it? " % board)
+    if not ask:
+      ask = askUser("Would you like to append to it? ")
+      if not ask:
+        return
+      mode = "a"
+
+  print("Create %s" % (board))
+  with open(board, mode) as f:
     f.write("menu.gdb=GDB\n")
     for ver in ('41','40'):
       f.write("""
@@ -222,7 +232,7 @@ teensy%s.menu.gdb.off.build.gdb=0
 """.replace("%s", ver))
 
   print("Create %s/platform.local.txt" % (AVR))
-  with open(AVR + "platform.local.txt", "w+") as f:
+  with open(AVR + "platform.local.txt", mode) as f:
     f.write("""
 tools.gdbtool.cmd.path={runtime.hardware.path}/../tools
 tools.gdbtool.upload.params.quiet=

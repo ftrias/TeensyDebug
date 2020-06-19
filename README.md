@@ -2,7 +2,7 @@ Live debugging on Teensy & GDB support
 ===========================================
 By Fernando Trias, June 2020
 
-This module provides breakpoint support for the Teensy 3/4 platform from PJRC without need for an external debug interface. The module provides:
+This module provides breakpoint support for the Teensy 4 (and 3.x in the future) platform from PJRC without need for an external debug interface. The module provides:
 
 1. GDB Remote Serial Protocol stub so that GDB can connect to the Teensy and perform live debugging.
 
@@ -21,12 +21,12 @@ GDB Remote Serial Protocol provides a simple interface between GDB and a remote 
 [PC running GDB] <--(serial)--> [Teensy GDB stub]
 ```
 
-Since Teensduino comes with a GDB executable for ARM processors, there is no need to install it. This module comes with an installer (see below) that will create a new menu in Arduino that will enable GDB. However, it can also be used stand-alone.
+Since Teensduino comes with a GDB executable for ARM processors, there is no need to install it. This module comes with an installer (see below) that will create a new menu in Arduino that will enable GDB. However, it can also be used stand-alone as a regular Arduino library.
 
 Sample code and usage
 -------------------------------------------
 
-This sketch is compiled using the Dual USB option.
+This sketch is compiled using the Dual Serial USB option.
 
 ```C++
 #include "TeensyDebug.h"
@@ -62,7 +62,7 @@ The `#pragma` will eliminate optimizations. If you don't use it, the compiler wi
 
 When you press Upload, the sketch will be compiled and uploaded to the Teensy. If you have enabled the menu options (see below for installation instructions), GDB will come up in a new window. If not, follow the Manual instructions farther down.
 
-Installing
+Installing overview
 -------------------------------------------
 
 There is an installer for Mac, Linux and Windows. The installer does these things:
@@ -76,7 +76,7 @@ You can also do these things by hand and not use installer app for your platform
 Installing on Mac
 -------------------------------------------
 
-This tool requires Python, which is installed by default on Macs. Install by running `install-mac.command` located in the disribution direction. This script creates a new menu option in Arduino and copies itself to the tools directory. Then it will create a local library with the source files. It makes no changes to existing source code.
+This tool requires Python, which is installed by default on Macs. Install by running `install-mac.command` located in the disribution directory. This script creates a new menu option in Arduino and copies itself to the tools directory. Then it will create a local library with the source files.
 
 Installing on Windows
 -------------------------------------------
@@ -86,12 +86,12 @@ This tool is installed by running `teensy_debug.exe` as Administrator. Do this b
 Installing on Linux
 -------------------------------------------
 
-Run `install-linux.sh` to install. It assumes your Arduino is installed in `~/arduino`. If this is not, pass the direction with the `-i=path` option. It will create a local library with the source files.
+Run `install-linux.sh` to install. It assumes your Arduino is installed in `~/arduino`. If this is not so, pass the direction with the `-i=path` option. It will create a local library with the source files.
 
 Installing from ZIP file
 -------------------------------------------
 
-If you install this library as a ZIP file from the Arduino menu, it will not install the additional menu options for running GDB after uploads. You will either have to do these things manually (see above) or you will have to follow the "Running GDB manually" instructions a few sections below.
+If you install this library as a ZIP file from the Arduino menu, it will not install the additional menu options for running GDB after uploads. You will either have to do these things manually (see "Installing overview") or you will have to follow the "Running GDB manually" instructions a few sections below.
 
 New menu options
 -------------------------------------------
@@ -102,7 +102,7 @@ The new menu provides these options:
 
 * Take over Serial: GDB will use the USB Serial to communicate with the Teensy. The library will redefine Serial so that any calls to Serial in your sketch will cause GDB to print your data. All optimizations will be turned off.
 
-* Manual Serial: Compile with GDB and start it, but don't connect automatically so you can choose the serial device to use.
+* Manual Serial: Compile program and start GDB, but don't connect automatically so you can choose the serial device to use.
 
 * Just compile: Compile with GDB but don't start GDB.
 
@@ -191,7 +191,7 @@ GDB supports the target writing files in the PC's file system. This is suppored 
 
 * `int file_write(int fd, const void *buf, unsigned int count)`
 
-* `int file_system(const char *buf)`: System calls are disabled by default in GDB. To enable, use the GDB command `set remote system-call-allowed 1`
+* `int file_system(const char *buf)`: System calls are disabled by default in GDB. To enable, use the GDB command `set remote system-call-allowed 1`.
 
 For example:
 ```C++

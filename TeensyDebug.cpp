@@ -1084,11 +1084,17 @@ void debug_init() {
   _VectorsRam[5] = call_bus_fault_isr;
   _VectorsRam[6] = call_usage_fault_isr;
 
-  original_svc_isr = _VectorsRam[11];
+  if (_VectorsRam[11] == unused_isr) {
+    original_svc_isr = 0;
+  }
+  else {
+    original_svc_isr = _VectorsRam[11];
+  }
   _VectorsRam[11] = svcall_isr;
 
   // chain the software ISR handler
   original_software_isr = _VectorsRam[IRQ_SOFTWARE + 16];
+
   _VectorsRam[IRQ_SOFTWARE + 16] = debug_call_isr;
   NVIC_SET_PRIORITY(IRQ_SOFTWARE, 208); // 255 = lowest priority
   NVIC_ENABLE_IRQ(IRQ_SOFTWARE);
