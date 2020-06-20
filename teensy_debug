@@ -118,8 +118,11 @@ def installGDB():
       else:
         DIR = APPDIR + "Arduino.app/"    
     else:
-      DIR = os.readlink("/usr/local/bin/arduino")
-      DIR = os.path.dirname(DIR) + "/"
+      try:
+        DIR = os.readlink("/usr/local/bin/arduinox")
+        DIR = os.path.dirname(DIR) + "/"
+      except:
+        DIR = ''
 
   while(True):
     if os.path.exists(DIR + "hardware/teensy"):

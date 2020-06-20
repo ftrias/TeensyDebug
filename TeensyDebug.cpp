@@ -733,9 +733,8 @@ void debug_monitor() {
 #pragma GCC optimize ("O0")
 
 void (*original_software_isr)() = NULL;
-#if 0
 void (*original_svc_isr)() = NULL;
-#endif
+
 /**
  * @brief Called by software interrupt. Perform chaining or
  * call handler.
@@ -797,7 +796,7 @@ void debug_call_isr_setup() {
   NVIC_SET_PENDING(IRQ_SOFTWARE); 
 }
 
-#if 0
+#if 1
 uint32_t lastpc;
 
 int testOurSVC() {
@@ -815,7 +814,7 @@ int testOurSVC() {
  */
 __attribute__((noinline, naked))
 void svcall_isr() {
-#if 0
+#if 1
   // get the PC that triggered this
   // subtract width of svc instruction (which is 2)
   // is it one of our svcs?
@@ -823,18 +822,19 @@ void svcall_isr() {
     "ldr r0, [sp, #24] \n"
     "sub r0, #2 \n"
     "ldr r1, =lastpc \n"
-    "str r0, [r1]"
+    "str r0, [r1] \n"
+    "push {lr}"
   );
   if (testOurSVC()) {
-    asm volatile("push {lr}");
     debug_call_isr_setup();
     asm volatile("pop {pc}");
   }
   else {
     if (original_svc_isr) {
+      asm volatile("pop {lr}");
       asm volatile("mov pc, %0" : : "r" (original_svc_isr));
     }
-    asm volatile("bx lr");
+    asm volatile("pop {pc}");
   }
 #else
   asm volatile("push {lr}");
@@ -1051,6 +1051,12 @@ void dumpmem(void *mem, int sz) {
 // table must be in ram above 0x20000000 and this ram is in the stack area.
 uint32_t save_stack;
 
+#ifdef __IMXRT1062__
+extern "C" void unused_interrupt_vector(void);
+#else
+extern "C" void unused_isr(void);
+#endif
+
 /**
  * @brief Initialize debugging system.
  * 
@@ -1087,14 +1093,16 @@ void debug_init() {
   _VectorsRam[5] = call_bus_fault_isr;
   _VectorsRam[6] = call_usage_fault_isr;
 
-#if 0
+#ifdef __IMXRT1062__
+  if (_VectorsRam[11] == unused_interrupt_vector) {
+#else
   if (_VectorsRam[11] == unused_isr) {
+#endif
     original_svc_isr = 0;
   }
   else {
     original_svc_isr = _VectorsRam[11];
   }
-#endif
   _VectorsRam[11] = svcall_isr;
 
   // chain the software ISR handler

@@ -10,31 +10,33 @@
  */
 
 /*
- * Notes:
+ * Notes on 'p':
  * 
- * Calling 'p' with a function as in `p func(1,2,3)` doesn't work. Use
- * the 'monitor call' command instead. The reason it fails is that GDB 7 performs the
+ * Calling 'p' with a function as in `p func(1,2,3)` doesn't work without
+ * this hack. The reason it fails is that GDB 7 performs the
  * call by:
  * 
  *   1. Setting a breakpoint at 0x60001000 (the ResetHandler)
  *   2. Setting LR to 0x60001000
  *   3. Setting PC to the funtion we want to call
- *   4. Continuing
+ *   4. Continuing, which causes function to execute
  *   5. Upon finishing, the function returns to LR
  *   6. The breakpoint is hit and GDB takes over
  *   7. GDB unrolls the stack, etc. and gets result
  * 
- * This doesn't work because 0x60001000 is in Flash. I tried to do a soft 
+ * This doesn't work because 0x60001000 is in Flash. I first tried to do a soft 
  * remap of 0x60001000 to a point in RAM, but that doesn't work. It fails 
  * with a "Assertion `get_frame_type (frame) == DUMMY_FRAME' failed."
- * I think the reason is because GDB changes SP by subtracting 4 before
+ * I think the reason is because GDB changes SP by subtracting 4 or 8 before
  * calling the function. Unfortunately, this library doesn't support 
- * GDB changing SP.
+ * GDB changing SP. So I keep track of a "fakesp" whenever SP is changed
+ * by GDB and just return that number instead of the real SP. See 
+ * process_G and process_P.
  * 
  * Newer versions of GDB choose a different breakpoint location. Instead
  * of setting the breakpoint on the ResetHandler, they will set it on
- * the stack. So perhaps part of the fix is to update the GDB version
- * distributed.
+ * the stack. If that's the case, then this hack will stop working
+ * sinces it relies on the address of 0x60001000.
  *  
  */
 
@@ -391,36 +393,6 @@ char *append32(char *p, uint32_t n) {
   }
   return p;
 }
-
-/*
- * Notes:
- * 
- * Calling 'p' with a function as in `p func(1,2,3)` doesn't work without
- * this hack. The reason it fails is that GDB 7 performs the
- * call by:
- * 
- *   1. Setting a breakpoint at 0x60001000 (the ResetHandler)
- *   2. Setting LR to 0x60001000
- *   3. Setting PC to the funtion we want to call
- *   4. Continuing, which causes function to execute
- *   5. Upon finishing, the function returns to LR
- *   6. The breakpoint is hit and GDB takes over
- *   7. GDB unrolls the stack, etc. and gets result
- * 
- * This doesn't work because 0x60001000 is in Flash. I tried to do a soft 
- * remap of 0x60001000 to a point in RAM, but that doesn't work. It fails 
- * with a "Assertion `get_frame_type (frame) == DUMMY_FRAME' failed."
- * I think the reason is because GDB changes SP by subtracting 4 before
- * calling the function. Unfortunately, this library doesn't support 
- * GDB changing SP. So I just hardcode subtracting 8 from SP and this
- * seems to fool GDB.
- * 
- * Newer versions of GDB choose a different breakpoint location. Instead
- * of setting the breakpoint on the ResetHandler, they will set it on
- * the stack. If that's the case, then this hack will stop working
- * sinces it relies on the address of 0x60001000.
- *  
- */
 
 // extern void print_registers();
 
@@ -779,6 +751,21 @@ char *getNextWord(char **text) {
   return orig;
 }
 
+char *getNextToken(char **text, char token) {
+  char *orig = *text;
+  char *p = orig;
+  while(*p) {
+    if (*p == token) {
+      *p++ = 0;
+      *text = 0;
+      return orig;
+    }
+    p++;
+  }
+  *text = 0;
+  return orig;
+}
+
 int (*call0)();
 int (*call1)(int p1);
 int (*call2)(int p1, int p2);
@@ -959,6 +946,18 @@ int process_k(const char *cmd, char *result) {
   return 0;
 }
 
+int process_v(char *cmd, char *result) {
+  char *work = getNextToken(&cmd, ';');
+  // Serial.print("v:");Serial.println(work);
+  if (strcmp(work, "vKill") == 0) {
+    strcpy(result, "OK");    
+  }
+  else {
+    result[0] = 0;
+  }
+  return 0;
+}
+
 int gdb_active_flag = 0;
 
 /**
@@ -968,7 +967,7 @@ int gdb_active_flag = 0;
  * @param result Result to send back
  * @return int 0
  */
-int processCommand(const char *cmd, char *result) {
+int processCommand(char *cmd, char *result) {
   gdb_active_flag = 1;
   switch(cmd[0]) {
     case 'g': return process_g(cmd, result);
@@ -982,7 +981,7 @@ int processCommand(const char *cmd, char *result) {
     case 'R': return process_R(cmd, result);
     case 'r': return process_R(cmd, result);
     case 'k': return process_k(cmd, result);
-    
+    case 'v': return process_v(cmd, result);    
     case '?': return process_question(cmd, result);
 //    case 'B': return process_B(cmd, result);
     case 'z': return process_z(cmd, result);
