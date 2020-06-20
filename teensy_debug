@@ -119,7 +119,7 @@ def installGDB():
         DIR = APPDIR + "Arduino.app/"    
     else:
       try:
-        DIR = os.readlink("/usr/local/bin/arduinox")
+        DIR = os.readlink("/usr/local/bin/arduino")
         DIR = os.path.dirname(DIR) + "/"
       except:
         DIR = ''
