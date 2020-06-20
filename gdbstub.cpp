@@ -888,6 +888,10 @@ int process_q(const char *cmd, char *result) {
     hex2str(x, cmd+6);
     return process_monitor(x, result);
   }
+  else if (strncmp(cmd, "qAttached", 9) == 0) {
+    strcpy(result, "1");
+    return 0;
+  }
   strcpy(result, "");    
   return 0;
 }
@@ -946,10 +950,20 @@ int process_k(const char *cmd, char *result) {
   return 0;
 }
 
+int process_D(char *cmd, char *result) {
+  halt_state = 0; // not halted
+  debugstep = 0;  // not stepping
+  strcpy(result, "OK");
+  return 0;
+}
+
 int process_v(char *cmd, char *result) {
   char *work = getNextToken(&cmd, ';');
   // Serial.print("v:");Serial.println(work);
   if (strcmp(work, "vKill") == 0) {
+    strcpy(result, "OK");    
+  }
+  else if (strcmp(work, "vAttach") == 0) {
     strcpy(result, "OK");    
   }
   else {
@@ -982,6 +996,7 @@ int processCommand(char *cmd, char *result) {
     case 'r': return process_R(cmd, result);
     case 'k': return process_k(cmd, result);
     case 'v': return process_v(cmd, result);    
+    case 'D': return process_D(cmd, result);    
     case '?': return process_question(cmd, result);
 //    case 'B': return process_B(cmd, result);
     case 'z': return process_z(cmd, result);
