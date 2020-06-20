@@ -71,7 +71,7 @@ Stream *dev = NULL;
 int getDebugChar() {
   unsigned int timeout = millis() + 1000;
   while(dev->available() <= 0) {
-    delay(1);
+    asm volatile("wfi");
     if (millis() > timeout) {
       // Serial.println("{timeout}");
       return -1;
@@ -333,7 +333,7 @@ int gdb_wait_for_flag(volatile int *flag, int timeout) {
     if (timeout && millis() > endtime) {
       return -1;
     }
-    delay(1);
+    asm volatile("wfi");
     yield();
   }
   return 0;
@@ -411,11 +411,8 @@ int process_g(const char *cmd, char *result) {
   uint32_t sp = debug.getRegister("sp");
   if ((pc|1) == (uint32_t)&fake_breakpoint) {
     pc = MAP_DUMMY_BREAKPOINT;
-    // Serial.print("sp fake:");Serial.println(fakesp, HEX);
-    // Serial.print("sp:");Serial.println(sp, HEX);
-    // delay(1000);
+    // Serial.print("fake sp:");Serial.println(sp, HEX);
     sp = fakesp;
-    // Serial.print("Fake breakpoint sp=");Serial.println(sp, HEX);
   }
 
   result = append32(result, debug.getRegister("r0"));
@@ -646,7 +643,7 @@ int process_s(const char *cmd, char *result) {
 }
 
 /**
- * @brief Process '?' query for last stop reason. TODO.
+ * @brief Process '?' query for last stop reason.
  * 
  * @param cmd 
  * @param result 
@@ -655,6 +652,19 @@ int process_s(const char *cmd, char *result) {
 int process_question(const char *cmd, char *result) {
   // sprintf(result, "S0%d", debug_id);
   strcpy(result, signal_text[debug_id]);
+  return 0;
+}
+
+/**
+ * @brief Process '!' query for extended mode.
+ * 
+ * @param cmd 
+ * @param result 
+ * @return int 
+ */
+int process_exclamation(const char *cmd, char *result) {
+  // sprintf(result, "S0%d", debug_id);
+  strcpy(result, "OK");
   return 0;
 }
 
@@ -998,6 +1008,7 @@ int processCommand(char *cmd, char *result) {
     case 'v': return process_v(cmd, result);    
     case 'D': return process_D(cmd, result);    
     case '?': return process_question(cmd, result);
+    case '!': return process_exclamation(cmd, result);
 //    case 'B': return process_B(cmd, result);
     case 'z': return process_z(cmd, result);
     case 'Z': return process_Z(cmd, result);
