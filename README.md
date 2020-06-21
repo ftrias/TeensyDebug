@@ -2,11 +2,11 @@ Live debugging on Teensy & GDB support
 ===========================================
 By Fernando Trias, June 2020
 
-This module provides breakpoint support for the Teensy 4 (and 3.x in the future) platform from PJRC without need for an external debug interface. The module provides:
+This module provides breakpoint support for the Teensy 3.x and 4.x platform from PJRC without need for an external debug interface. The module provides:
 
 1. GDB Remote Serial Protocol stub so that GDB can connect to the Teensy and perform live debugging.
 
-2. Ability to set/clear breakpoints and query registers and memory.
+2. Ability to set/clear breakpoints and query registers and memory on running and paused programs.
 
 3. Catch hard crashes and display diagnosics.
 
@@ -251,7 +251,7 @@ Bugs
 
 1. Because stepping is implemented by putting a `SVC` in the next instruction, there are a number of bugs related to `step` and `next`. 
 
-2. `step` may not always step into functions. Stepping won't always work over a return. TeensyDebug traps `bx lr`, `pop {Rmmm, pc}`, `mov pc, Rm` and will usually step properly over these instruction if using gdb `stepi` command. Branch instructions are also interpreted properly most of the time. However gdb `step` and `next` may occasionally get confused and stop stepping.
+2. `step` may not always step into functions. Stepping won't always work over a return. TeensyDebug traps `bx lr`, `pop {Rmmm, pc}`, `mov pc, Rm` and will usually step properly over these instruction if using gdb `stepi` command. Branch instructions are also interpreted properly most of the time. However gdb `step` and `next` may occasionally get confused and stop stepping. Returning from functions on Teensy 3 is very limited.
 
 Future considerations
 -------------------------------------------

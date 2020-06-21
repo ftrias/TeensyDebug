@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# Copyright 2020 by Fernando Trias
 
 #
 # Program Teensy, wait for it to come back online and start GDB.
@@ -212,7 +213,7 @@ def createFiles(AVR):
   print("Create %s" % (board))
   with open(board, mode) as f:
     f.write("menu.gdb=GDB\n")
-    for ver in ('41','40'):
+    for ver in ('41','40','31'):
       f.write("""
 teensy%s.menu.gdb.serial=Take over Serial
 teensy%s.menu.gdb.serial.build.gdb=2

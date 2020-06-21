@@ -525,14 +525,18 @@ int process_P(const char *cmd, char *result) {
  * @param addr Address to check
  * @return int 1 = valid; 0 = invalid
  */
-int isValidAddress(uint32_t addr) {
-  if (addr <= 0x20) {
-    return 0;
+int isValidAddress(uint32_t addr, int sz=0) {
+  if (addr >= RAM_START && addr <= RAM_END) {
+    if (addr+sz-1 >= RAM_START && addr+sz-1 <= RAM_END) {
+      return 1;
+    }
   }
-  else if (addr >= 0xF0000000) {
-    return 0;
+  else if (addr >= FLASH_START && addr <= FLASH_END) {
+    if (addr+sz-1 >= FLASH_START && addr+sz-1 <= FLASH_END) {
+      return 1;
+    }
   }
-  return 1;
+  return 0;
 }
 
 /**
@@ -554,7 +558,7 @@ int process_m(const char *cmd, char *result) {
 
   // Serial.print("read at ");Serial.println(addr, HEX);
 
-  if (isValidAddress(addr+sz-1) == 0) {
+  if (isValidAddress(addr, sz) == 0) {
     strcpy(result, "E01");
     return 0;
   }

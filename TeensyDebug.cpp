@@ -37,6 +37,8 @@ https://web.eecs.umich.edu/~prabal/teaching/eecs373-f10/readings/ARMv7-M_ARM.pdf
 #define GDB_DEBUG_INTERNAL
 #include "TeensyDebug.h"
 
+// #define DISPLAY_HARD_FAULT
+
 /**
  * @brief Memory maps missing from headers
  * 
@@ -145,51 +147,26 @@ const int hw_breakpoint_count = 6;
 void *hw_breakpoints[hw_breakpoint_count];
 uint16_t *hw_remap_table;
 
-int hwdebug_clearBreakpoint(void *p, int n) {
-  FP_COMP(n) = 0;
-  return 0;
-}
-
-int hwdebug_setBreakpoint(void *p, int n) {
-  if (p == 0) {
+int hwdebug_clearAllBreakpoints() {
+  for (int n=1; n<6; n++) {
+    hw_breakpoints[n] = 0;
     FP_COMP(n) = 0;
-//    Serial.print("break0 ");Serial.println(n);
-  }
-  else {
-    uint32_t pc = ((uint32_t)p) & ADDRESS_MASK;
-    if (pc & 0b10) { // must be aligned, so go to next instruction
-      // store the first instruction
-      pc -= 2;
-      remap_table[(n<<1) + 0] = ((uint16_t*)pc)[0];
-      remap_table[(n<<1) + 1] = 0xdf10; // svc 10 instruction
-    }
-    else {
-      // store the next instruction
-      remap_table[(n<<1) + 0] = 0xdf10; // svc 10 instruction
-      remap_table[(n<<1) + 1] = ((uint16_t*)pc)[1];
-    }
-    
-    uint32_t addr = pc & ADDRESS_MASK2;
-    FP_COMP(n) = addr | 1;
-    breakpoints[n] = p;
-//    Serial.print("break ");Serial.print(n);Serial.print(" at ");Serial.print(pc, HEX);Serial.print("=");Serial.println(addr, HEX);
   }
   return 0;
-}
-
-void hwdebug_disableBreakpoint(int n) {
-  FP_COMP(n) &= ADDRESS_MASK;
-  // Serial.print("break ");Serial.print(n);Serial.println(" disable");
-}
-
-void hwdebug_enableBreakpoint(int n) {
-  FP_COMP(n) |= 1;
-  // Serial.print("break ");Serial.print(n);Serial.println(" enable");
 }
 
 int hwdebug_getBreakpoint(void *p) {
   for (int n=1; n<6; n++) {
-    if (breakpoints[n]== p) {
+    if (hw_breakpoints[n] == p) {
+      return n;
+    }
+  }
+  return -1;
+}
+
+int hwdebug_nextBreakpoint() {
+  for (int n=1; n<6; n++) {
+    if (hw_breakpoints[n] == 0) {
       return n;
     }
   }
@@ -198,10 +175,53 @@ int hwdebug_getBreakpoint(void *p) {
 
 int hwdebug_isBreakpoint(void *p) {
   for (int n=1; n<6; n++) {
-    if (breakpoints[n]== p) {
+    if (hw_breakpoints[n] == p) {
       return 1;
     }
   }
+  return 0;
+}
+
+int hwdebug_clearBreakpoint(void *p) {
+  int n = hwdebug_getBreakpoint(p);
+  if (n < 0) return -1;
+  FP_COMP(n) = 0;
+  hw_breakpoints[n] = 0;
+  // Serial.print("hw clear ");Serial.print(n);Serial.print(" at ");Serial.println((int)p, HEX);
+  return 0;
+}
+
+int hwdebug_setBreakpoint(void *p) {
+  int n = hwdebug_getBreakpoint(p);
+  if (n > 0) {
+    // Serial.print("set existing hw breakpoint at ");Serial.println((int)p, HEX);
+    return 0;
+  }
+
+  n = hwdebug_nextBreakpoint();
+  if (n < 0) {
+    // Serial.print("out of breakpoints for ");Serial.println((int)p, HEX);
+    return -1;
+  }
+
+  uint32_t pc = ((uint32_t)p) & ADDRESS_MASK;
+  if (pc & 0b10) { // must be aligned, so go to next instruction
+    // store the first instruction
+    pc -= 2;
+    hw_remap_table[(n<<1) + 0] = ((uint16_t*)pc)[0];
+    hw_remap_table[(n<<1) + 1] = 0xdf10; // svc 10 instruction
+  }
+  else {
+    // store the next instruction
+    hw_remap_table[(n<<1) + 0] = 0xdf10; // svc 10 instruction
+    hw_remap_table[(n<<1) + 1] = ((uint16_t*)pc)[1];
+  }
+  
+  uint32_t addr = pc & ADDRESS_MASK2;
+  FP_COMP(n) = addr | 1;
+  hw_breakpoints[n] = p;
+  // Serial.print("hw break ");Serial.print(n);Serial.print(" at ");Serial.print(pc, HEX);Serial.print("=");Serial.println(addr, HEX);
+
   return 0;
 }
 
@@ -269,12 +289,7 @@ void debug_initBreakpoints() {
     hc_breakpoint_enabled[i] = 0;
   }
 #ifdef HAS_FP_MAP
-  hwdebug_clearBreakpoint(0, 0);
-  hwdebug_clearBreakpoint(0, 1);
-  hwdebug_clearBreakpoint(0, 2);
-  hwdebug_clearBreakpoint(0, 3);
-  hwdebug_clearBreakpoint(0, 4);
-  hwdebug_clearBreakpoint(0, 5);
+  hwdebug_clearAllBreakpoints();
 #endif
 }
 
@@ -286,7 +301,7 @@ void debug_initBreakpoints() {
  * @param n Optional slot for hardware breakpoints
  * @return int 0 if success; -1 failure
  */
-int debug_clearBreakpoint(void *p, int n) {
+int debug_clearBreakpoint(void *p) {
   // Serial.print("clear ");Serial.println((int)p,HEX);
   if (p >= RAM_START && p <= RAM_END) {
     return swdebug_clearBreakpoint(p);
@@ -296,7 +311,7 @@ int debug_clearBreakpoint(void *p, int n) {
   }
   else {
 #ifdef HAS_FP_MAP
-    return hwdebug_clearBreakpoint(p, n);    
+    return hwdebug_clearBreakpoint(p);    
 #else
     return -1;
 #endif
@@ -310,7 +325,7 @@ int debug_clearBreakpoint(void *p, int n) {
  * @param n Optional slot for hardware breakpoints
  * @return int 0 = success; -1 = failure
  */
-int debug_setBreakpoint(void *p, int n) {
+int debug_setBreakpoint(void *p) {
   // Serial.print("set ");Serial.println((int)p,HEX);
   if (p >= RAM_START && p <= RAM_END) {
     return swdebug_setBreakpoint(p);
@@ -320,7 +335,7 @@ int debug_setBreakpoint(void *p, int n) {
   }
   else {
 #ifdef HAS_FP_MAP
-    return hwdebug_setBreakpoint(p, n);    
+    return hwdebug_setBreakpoint(p);    
 #else
     return -1;
 #endif
@@ -499,6 +514,7 @@ void *instructionReturn(void *p) {
     // Serial.print("pop pc instr ");Serial.println(inst, HEX);
     // Serial.print("regs ");Serial.println(regs);
     // Serial.print("pop pc at ");Serial.println(memory[regs], HEX);
+    // return 0;
     return (void*)memory[regs]; 
   }
   if (inst == 0x4770) { // bx lr
@@ -567,19 +583,25 @@ uint32_t temp_breakpoint = 0;
 uint32_t temp_breakpoint2 = 0;
 
 void setBreakPointNext(uint32_t breakaddr, uint32_t nextaddr) {
+#ifdef HAS_FP_MAP
+  // For some unknown reason, FP doesn't work across returns like pop {pc},
+  // etc.
+  if (0) { }
+#else
   void *ret = instructionReturn((void*)breakaddr);
   // is this a return of some sort?
   if (ret) {
     temp_breakpoint = (uint32_t)ret;
     // Serial.print("return to ");Serial.println(temp_breakpoint, HEX);
   }
+#endif
   else {
     int bx;
     void *b = instructionBranch((void*)breakaddr, &bx);
     if (b) {
       temp_breakpoint2 = (uint32_t)b;
       // Serial.print("branch to ");Serial.println(temp_breakpoint2, HEX);
-      debug_setBreakpoint((void*)temp_breakpoint2, 0);
+      debug_setBreakpoint((void*)temp_breakpoint2);
     }
     // is 32 bits wide?
     if (instructionWidth((void*)breakaddr) == 2) {
@@ -590,7 +612,7 @@ void setBreakPointNext(uint32_t breakaddr, uint32_t nextaddr) {
       temp_breakpoint = nextaddr;
     }
   }
-  debug_setBreakpoint((void*)temp_breakpoint, 0);
+  debug_setBreakpoint((void*)temp_breakpoint);
 }
 
 /**
@@ -620,14 +642,14 @@ void debug_monitor() {
 
     // gdb will clear the current breakpoint but we do this first so disassembly holds 
     // original code
-    debug_clearBreakpoint((void*)breakaddr, 1);
+    debug_clearBreakpoint((void*)breakaddr);
     // clear the temporary breakpoints
     if (temp_breakpoint) {
-      debug_clearBreakpoint((void*)temp_breakpoint, 0);
+      debug_clearBreakpoint((void*)temp_breakpoint);
       temp_breakpoint = 0;
     }
     if (temp_breakpoint2) {
-      debug_clearBreakpoint((void*)temp_breakpoint2, 2); 
+      debug_clearBreakpoint((void*)temp_breakpoint2); 
       temp_breakpoint2 = 0;
     }
   }
@@ -656,7 +678,7 @@ void debug_monitor() {
 
   // if we need to reset the original, do so
   if (debugreset) {
-    debug_setBreakpoint((void*)debugreset, 1);
+    debug_setBreakpoint((void*)debugreset);
     debugreset = 0;
   }
 }
@@ -961,12 +983,12 @@ void flash_blink(int n) {
   pinMode(13, OUTPUT);
   while(1) {
     for(int c=0; c<n; c++) {
-      for(int i=0; i<20000000; i++) {p++;}
+      for(int i=0; i<20000; i++) {p++;}
       digitalWrite(13, HIGH);
-      for(int i=0; i<20000000; i++) {p++;}
+      for(int i=0; i<20000; i++) {p++;}
       digitalWrite(13, LOW);
     }
-    for(int i=0; i<100000000; i++) {p++;}
+    for(int i=0; i<100000; i++) {p++;}
   }
 }
 
@@ -978,7 +1000,6 @@ int debug_crash = 0;
  * @param n 
  */
 void hard_fault_debug(int n) {
-  // if (debug_crash) flash_blink(n);
   Serial.print("****FAULT ");
   Serial.println(hard_fault_debug_text[n]);
   Serial.print("r0=");Serial.println(stack->r0, HEX);
@@ -991,6 +1012,7 @@ void hard_fault_debug(int n) {
   Serial.println("****************");
   debug_crash = 1;
   stack->pc += 2; // if we continue, skip faulty instruction
+  flash_blink(n);
 }
 
 extern "C" 
@@ -1004,12 +1026,16 @@ void fault_halt() {
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 
+#ifdef DISPLAY_HARD_FAULT
+
 // Save registers during fault and call default handler
-#define xfault_isr_stack(fault) \
+#define fault_isr_stack(fault) \
   asm volatile("ldr r0, =stack \n str sp, [r0]"); \
   asm volatile("push {lr}"); \
   hard_fault_debug(fault); \
   asm volatile("pop {pc}")
+
+#else
 
 #define fault_isr_stack(fault) \
   asm volatile(SAVE_STACK); \
@@ -1019,6 +1045,8 @@ void fault_halt() {
   debug_id = fault; \
   debug_call_isr_setup(); \
   asm volatile("pop {pc}")
+
+#endif
 
 /**
  * @brief Trap faults
@@ -1075,7 +1103,7 @@ void debug_init() {
   // enable the remap, but don't assign any yet
   FP_LAR = FP_LAR_UNLOCK_KEY; // doesn't do anything, but might in some other processors
   FP_REMAP = xtable;
-  remap_table = (uint16_t *)xtable;
+  hw_remap_table = (uint16_t *)xtable;
   FP_CTRL = 0b11;
 
   // delay(3000);
@@ -1174,8 +1202,8 @@ void __attribute__((naked)) setup() {
  */
 
 int Debug::begin(Stream *device) { return debug_begin(device); }
-int Debug::setBreakpoint(void *p, int n) { return debug_setBreakpoint(p, n); }
-int Debug::clearBreakpoint(void *p, int n) { return debug_clearBreakpoint(p, n); }
+int Debug::setBreakpoint(void *p) { return debug_setBreakpoint(p); }
+int Debug::clearBreakpoint(void *p) { return debug_clearBreakpoint(p); }
 void Debug::setCallback(void (*c)()) { callback = c; }
 uint32_t Debug::getRegister(const char *reg) { return debug_getRegister(reg); }
 int Debug::setRegister(const char *reg, uint32_t value) { return debug_setRegister(reg, value); }

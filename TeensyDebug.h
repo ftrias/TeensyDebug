@@ -24,15 +24,20 @@
 //
 
 #ifdef __MK20DX256__
+#define FLASH_START ((void*)0x0)
+#define FLASH_END ((void*)0x00040000)
 #define RAM_START ((void*)0x1FFF8000)
 #define RAM_END   ((void*)0x2FFFFFFF)
 #endif
 
 #ifdef __IMXRT1062__
+#define FLASH_START ((void*)0x60000000)
+#define FLASH_END ((void*)0x601f0000)
 #define RAM_START ((void*)0x00000020)
 #define RAM_END   ((void*)0x20280000)
 #endif
 
+#include <usb_desc.h>
 
 #if defined(GDB_DUAL_SERIAL) && ! defined(CDC2_DATA_INTERFACE)
 #error "You must use Dual Serial or Triple Serial to enable GDB on Dual Serial."
@@ -121,8 +126,8 @@ class Debug : public Print, public DebugFileIO {
 public:
   int begin(Stream *device = NULL);
   int begin(Stream &device) { return begin(&device); }
-  int setBreakpoint(void *p, int n=1);
-  int clearBreakpoint(void *p, int n=1);
+  int setBreakpoint(void *p);
+  int clearBreakpoint(void *p);
   void setCallback(void (*c)());
   uint32_t getRegister(const char *reg);
   int setRegister(const char *reg, uint32_t value);
