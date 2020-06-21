@@ -12,6 +12,8 @@ This module provides breakpoint support for the Teensy 4 (and 3.x in the future)
 
 Forum discussion: https://forum.pjrc.com/threads/61373-Using-GDB-with-Teensy-without-hardware-debugger-first-Beta?p=243249&posted=1#post243249
 
+License: GNU (see license.txt) and commercial available
+
 GDB background
 -------------------------------------------
 
