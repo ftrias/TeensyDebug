@@ -444,6 +444,10 @@ struct stack_isr {
 // return address and other things
 struct stack_isr *stack;
 
+/**
+ * @brief Display registers for debugging of the debugger
+ * 
+ */
 void print_registers() {
   Serial.print("r0=");Serial.println(save_registers.r0);
   Serial.print("r1=");Serial.println(save_registers.r1);
@@ -463,6 +467,12 @@ void print_registers() {
   Serial.print("sp=0x");Serial.println(save_registers.sp,HEX);
 }
 
+/**
+ * @brief Return instruction width in bytes of the instruction *p
+ * 
+ * @param p Pointer to instruction
+ * @return int Number of bytes (usually 2)
+ */
 int instructionWidth(void *p) {
   uint16_t prefix = (*(uint16_t*)p) & 0xF800;
   if (prefix == 0xF000) return 2;
@@ -472,6 +482,12 @@ int instructionWidth(void *p) {
   return 1;
 }
 
+/**
+ * @brief Parse register instruction bits and return register value
+ * 
+ * @param x Register bits from instruction
+ * @return uint32_t Value of register
+ */
 uint32_t getRegisterNum(int x) {
   switch(x) {
     case  0: return save_registers.r0;
@@ -486,6 +502,12 @@ uint32_t getRegisterNum(int x) {
   return 0;
 }
 
+/**
+ * @brief Count the number of registers in instruction. Used by "pop" and "push"
+ * 
+ * @param x Bits from instruction
+ * @return int Number of registers to pop or push
+ */
 int countBits(int x) {
   return
     ((x & (1<<0)) >> 0) +
@@ -498,6 +520,13 @@ int countBits(int x) {
     ((x & (1<<7)) >> 7);
 }
 
+/**
+ * @brief If pointer is "return" instruction, return the address where
+ * it will return.
+ * 
+ * @param p Pointer to instruction
+ * @return void* Address to return to
+ */
 void *instructionReturn(void *p) {
   uint16_t inst = *(uint16_t*)p;
   uint16_t prefix = inst >> 8;
@@ -524,6 +553,14 @@ void *instructionReturn(void *p) {
   return 0;
 }
 
+/**
+ * @brief If pointer is branch, return the branching address. Works for conditional
+ * and explicit 2-byte and 4-byte branches.
+ * 
+ * @param p Instruction pointer
+ * @param bx Flag set if instruction is BX (modifies LR)
+ * @return void* Address branching to
+ */
 void *instructionBranch(void *p, int *bx) {
   *bx = 0;
   uint16_t inst = *(uint16_t*)p;
@@ -582,6 +619,13 @@ uint32_t debugreset = 0;
 uint32_t temp_breakpoint = 0;
 uint32_t temp_breakpoint2 = 0;
 
+/**
+ * @brief Set a breakpoint at the next instructions, taking into account returns
+ * and branches.
+ * 
+ * @param breakaddr Location of instruction
+ * @param nextaddr Location of next instruction (as given by PC)
+ */
 void setBreakPointNext(uint32_t breakaddr, uint32_t nextaddr) {
 #ifdef HAS_FP_MAP
   // For some unknown reason, FP doesn't work across returns like pop {pc},
@@ -597,6 +641,7 @@ void setBreakPointNext(uint32_t breakaddr, uint32_t nextaddr) {
 #endif
   else {
     int bx;
+    // are we branching?
     void *b = instructionBranch((void*)breakaddr, &bx);
     if (b) {
       temp_breakpoint2 = (uint32_t)b;
@@ -683,6 +728,10 @@ void debug_monitor() {
   }
 }
 
+/**
+ * @brief Macros to save/restore registers from stack
+ * 
+ */
 #define SAVE_STACK \
     "ldr r0, =stack \n" \
     "str sp, [r0] \n"
@@ -720,6 +769,7 @@ void debug_monitor() {
     "str r11, [r0, #60] \n" \
     "str r1, [r0, #64] \n"
 
+// Restore all registers except SP
 #define RESTORE_REGISTERS \
     "ldr r0, =stack \n" \
     "ldr r1, [r0] \n " \
@@ -752,6 +802,7 @@ void debug_monitor() {
     "ldr r11, [r0, #60] \n"
 
 #pragma GCC push_options
+// don't optimize; probably overkill, but this is safer
 #pragma GCC optimize ("O0")
 
 void (*original_software_isr)() = NULL;
@@ -773,7 +824,7 @@ void debug_call_isr() {
 
   // Are we in debug mode? If not, just jump to original ISR
   if (debugenabled == 0) {
-#if 0
+#if 1
     if (original_software_isr) {
       // asm volatile("ldr r0, =original_software_isr");
       // asm volatile("ldr r0, [r0]");
@@ -793,6 +844,7 @@ void debug_call_isr() {
   debugenabled = 0;
   // Serial.print("restore regs=");Serial.println(debugrestore);
 
+  // restore registers if they have been changed by gdb
   if (debugrestore) {
     debugrestore = 0;
     asm volatile("pop {r12}");
@@ -866,7 +918,8 @@ void svcall_isr() {
 }
 
 /**
- * @brief Table used by FP_MAP to map memory to breakpoints
+ * @brief Table used by FP_MAP to map memory to breakpoints. This will
+ * get copied to RAM and serve as reference. Probably not really needed.
  * 
  */
 __attribute__((naked))
@@ -928,6 +981,13 @@ uint32_t debug_getRegister(const char *reg) {
   return -1;
 }
 
+/**
+ * @brief Set register
+ * 
+ * @param reg Text register as in 'r0', 'r1', etc.
+ * @param value Value to set
+ * @return int 0 if failed; 1 if success
+ */
 int debug_setRegister(const char *reg, uint32_t value) {
   debugrestore = 1;
   if (reg[0] == 'r') {
@@ -978,6 +1038,11 @@ int debug_restoreRunMode() {
  * Fault debug messages
  */
 
+/**
+ * @brief Blink LED in infinite loop
+ * 
+ * @param n Code to blink
+ */
 void flash_blink(int n) {
   volatile int p = 0;
   pinMode(13, OUTPUT);
@@ -1037,6 +1102,7 @@ void fault_halt() {
 
 #else
 
+// Save registers during fault and call special handler that allows debugging
 #define fault_isr_stack(fault) \
   asm volatile(SAVE_STACK); \
   asm volatile(SAVE_REGISTERS); \
@@ -1065,6 +1131,12 @@ __attribute__((noinline, naked)) void call_usage_fault_isr(void)  { fault_isr_st
  * 
  */
 
+/**
+ * @brief Utility function to display memory.
+ * 
+ * @param mem 
+ * @param sz 
+ */
 void dumpmem(void *mem, int sz) {
   Serial.print((uint32_t)mem, HEX);
   Serial.print("=");
@@ -1198,7 +1270,7 @@ void __attribute__((naked)) setup() {
 #endif
 
 /**
- * Class
+ * Class helper Debug
  */
 
 int Debug::begin(Stream *device) { return debug_begin(device); }
