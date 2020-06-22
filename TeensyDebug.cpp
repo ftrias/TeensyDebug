@@ -306,9 +306,9 @@ int debug_clearBreakpoint(void *p) {
   if (p >= RAM_START && p <= RAM_END) {
     return swdebug_clearBreakpoint(p);
   }
-  else if (p < (void*)0xF) {
-    return hcdebug_clearBreakpoint((int)p);
-  }
+  // else if (p < (void*)0xF) {
+  //   return hcdebug_clearBreakpoint((int)p);
+  // }
   else {
 #ifdef HAS_FP_MAP
     return hwdebug_clearBreakpoint(p);    
@@ -330,9 +330,9 @@ int debug_setBreakpoint(void *p) {
   if (p >= RAM_START && p <= RAM_END) {
     return swdebug_setBreakpoint(p);
   }
-  else if (p < (void*)0xF) {
-    return hcdebug_setBreakpoint((int)p);
-  }
+  // else if (p < (void*)0xF) {
+  //   return hcdebug_setBreakpoint((int)p);
+  // }
   else {
 #ifdef HAS_FP_MAP
     return hwdebug_setBreakpoint(p);    
@@ -352,9 +352,9 @@ int debug_isBreakpoint(void *p) {
   if (p >= RAM_START && p <= RAM_END) {
     return swdebug_isBreakpoint(p);
   }
-  else if (p < (void*)0xF) {
-    return hcdebug_isBreakpoint((int)p);
-  }
+  // else if (p < (void*)0xF) {
+  //   return hcdebug_isBreakpoint((int)p);
+  // }
   else {
 #ifdef HAS_FP_MAP
     return hwdebug_isBreakpoint(p);    

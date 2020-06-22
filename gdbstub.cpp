@@ -9,6 +9,20 @@
  * 
  */
 
+#include <Arduino.h>
+
+#define CPU_RESTART_ADDR (uint32_t *)0xE000ED0C
+#define CPU_RESTART_VAL 0x5FA0004
+#define CPU_RESTART (*CPU_RESTART_ADDR = CPU_RESTART_VAL);
+
+#define GDB_DEBUG_INTERNAL
+#include "TeensyDebug.h"
+
+// #define GDB_DEBUG_COMMANDS
+
+#define GDB_POLL_INTERVAL_MICROSEC 500
+
+
 /*
  * Notes on 'p':
  * 
@@ -38,22 +52,13 @@
  * the stack. If that's the case, then this hack will stop working
  * sinces it relies on the address of 0x60001000.
  *  
+ * MAP_DUMMY_BREAKPOINT is the address of ResetHandler.
  */
-
-#include <Arduino.h>
-
-#define CPU_RESTART_ADDR (uint32_t *)0xE000ED0C
-#define CPU_RESTART_VAL 0x5FA0004
-#define CPU_RESTART (*CPU_RESTART_ADDR = CPU_RESTART_VAL);
-
-#define GDB_DEBUG_INTERNAL
-#include "TeensyDebug.h"
-
-// #define GDB_DEBUG_COMMANDS
-
-#define GDB_POLL_INTERVAL_MICROSEC 500
-
+#ifdef __IMXRT1062__
 #define MAP_DUMMY_BREAKPOINT 0x60001000
+#else
+#define MAP_DUMMY_BREAKPOINT 0x00000001
+#endif
 
 /**
  * Code to communicate with GDB. Use standard nomenclature.
@@ -699,10 +704,11 @@ int process_z(const char *cmd, char *result) {
   hexToInt(&cmd, &addr);
 //  cmd++;
 //  hexToInt(&cmd, &sz);
-  if (addr == 0) {
-    strcpy(result, "E01");
-  }
-  else if (addr == MAP_DUMMY_BREAKPOINT) { // hard-coded breakpoint
+  // if (addr == 0) {
+  //   strcpy(result, "E01");
+  //   return 0;
+  // }
+  if (addr == MAP_DUMMY_BREAKPOINT) { // hard-coded breakpoint
     strcpy(result, "OK");
   }
   else if (debug.clearBreakpoint((void*)addr)) {
@@ -731,10 +737,11 @@ int process_Z(const char *cmd, char *result) {
   // optional size not used because we only support Thumb
 //  cmd++;
 //  hexToInt(&cmd, &sz);
-  if (addr == 0) {
-    strcpy(result, "E01");
-  }
-  else if (addr == MAP_DUMMY_BREAKPOINT) { // hard-coded breakpoint
+  // if (addr == 0) {
+  //   strcpy(result, "E01");
+  //   return 0;
+  // }
+  if (addr == MAP_DUMMY_BREAKPOINT) { // hard-coded breakpoint
     strcpy(result, "OK");
   }
   else if (debug.setBreakpoint((void*)addr)) {
@@ -829,6 +836,12 @@ int process_monitor(char *cmd, char *result) {
     char x[6];
     sprintf(x, "%d\n", v);
     mem2hex(result, (const char *)x, strlen(x));
+    return 0;   
+  }
+  else if (stricmp(word, "symbol") == 0) {
+    char *name = getNextWord(&place);
+    sprintf(send_message, "qSymbol:%s", name);
+    strcpy(result, "OK"); 
     return 0;   
   }
   else if (stricmp(word, "call") == 0) {
