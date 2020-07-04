@@ -115,7 +115,7 @@ Running GDB manually
 
 If the menu option doesn't work for you, or you are using a physical serial port, you can run GDB manually.
 
-For example, after compiling and uploading the program in the example above, Teensy will have two serial ports. One is the standard one you can view on the Serial Monitor. The other is the one you will connect to. You need to figure out what the device name is (See menu `Tools / Port`). Let's assume it's `/dev/cu.usbmodem61684901`.
+For example, after compiling and uploading the program in the example above, Teensy will have two serial ports. One is the standard one you can view on the Serial Monitor. The other is the one you will connect to. You need to figure out what the device name is (See menu `Tools / Port`). Let's assume it's `/dev/cu.usbmodem61684901`. On Windows, it would be something like `COM20`.
 
 You also need to find the GDB executable that came with Teensyduino. On the Mac it is located in `/Applications/Teensyduino.app/Contents/Java/hardware//tools/arm/bin/arm-none-eabi-gdb`.
 
@@ -136,7 +136,7 @@ Type "apropos word" to search for commands related to "word".
 (gdb)
 ```
 
-At the prompt use the `target remote` command using the correct port:
+At the prompt use the `target remote` command using the correct port. On Windows it is sometimes necessary to specify serial ports in a long form as: `\\.\COM20`.
 
 ```
 target remote /dev/cu.usbmodem61684903
@@ -183,7 +183,7 @@ Because `Debug` inherits from `Print`, it supports the usual print functions, su
 
 GDB supports the target writing files in the PC's file system. This is suppored by the `debug.file_*()` menthods. They follow the standard Posix conventions. If a function returns a negative number, it means failure: The methods of `debug` are:
 
-* `int file_errno()`
+* `int file_errno()`: Get the last errno error.
 
 * `int file_open(const char *file, int flags = O_CREAT | O_RDWR, int mode = 0644)`
 
@@ -199,7 +199,7 @@ For example:
 ```C++
 int fd = debug.file_open("/tmp/test.out");
 if (fd < 0) {
-  Serial.println(debug.file_errno());
+  debug.println(debug.file_errno());
 }
 else {
   debug.file_write(fd, "abc", 3);

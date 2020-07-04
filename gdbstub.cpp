@@ -531,13 +531,13 @@ int process_P(const char *cmd, char *result) {
  * @return int 1 = valid; 0 = invalid
  */
 int isValidAddress(uint32_t addr, int sz=0) {
-  if (addr >= RAM_START && addr <= RAM_END) {
-    if (addr+sz-1 >= RAM_START && addr+sz-1 <= RAM_END) {
+  if (addr >= (uint32_t)RAM_START && addr <= (uint32_t)RAM_END) {
+    if (addr+sz-1 >= (uint32_t)RAM_START && addr+sz-1 <= (uint32_t)RAM_END) {
       return 1;
     }
   }
-  else if (addr >= FLASH_START && addr <= FLASH_END) {
-    if (addr+sz-1 >= FLASH_START && addr+sz-1 <= FLASH_END) {
+  else if (addr >= (uint32_t)FLASH_START && addr <= (uint32_t)FLASH_END) {
+    if (addr+sz-1 >= (uint32_t)FLASH_START && addr+sz-1 <= (uint32_t)FLASH_END) {
       return 1;
     }
   }

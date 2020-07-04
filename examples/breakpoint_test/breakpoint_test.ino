@@ -41,7 +41,7 @@ void setup() {
   debug.begin(Serial1);
   
 //  debug.setCallback(break_me);
-//  debug.setBreakpoint(testme, 1);
+//  debug.setBreakpoint(testme);
 
 //  *(int*)0 = 0;
 
