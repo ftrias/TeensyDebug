@@ -158,6 +158,45 @@ Program received signal SIGTRAP, Trace/breakpoint trap.
 (gdb) 
 ```
 
+Use with PlatformIO and VSCode
+-------------------------------------------
+
+In the PJRC forum, AndyCap suggests using the following launch configuaration with VSCode:
+
+```JSON
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch",
+      "type": "cppdbg",
+      "request": "launch",
+      "miDebuggerPath": "/Applications/Arduino.app//Contents/Java/hardware/tools/arm/bin/arm-none-eabi-gdb",
+      "miDebuggerArgs": "--baud=115200",
+      "MIMode": "gdb",
+      "targetArchitecture": "arm",
+      "program": "firmware.elf",
+      "launchCompleteCommand": "None",
+      "filterStderr": false,
+      "filterStdout": false,
+      "externalConsole": false,
+      "cwd": "${workspaceRoot}",
+      "setupCommands": [
+        {"text": "set target-async off"},
+        {"text": "target extended-remote /dev/cu.usbserial"},   
+        ]
+    }
+  ]
+}
+```
+
+If using a physical serial port, this requires setting the baud rate in your sketch as in:
+
+```C++
+  Serial1.begin(115200);
+  debug.begin(Serial1);
+```
+
 Methods of `debug` object
 -------------------------------------------
 
