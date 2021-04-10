@@ -12,9 +12,9 @@
 #ifndef TEENSY_DEBUG_H
 #define TEENSY_DEBUG_H
 
-// is this a Teensy 3.2? If so, we can support hardware interrupts
+// is this a Teensy 3.2 or Teensy 3.6? If so, we can support hardware interrupts
 // and should hijack setup() to set that up.
-#ifdef __MK20DX256__
+#if defined(__MK20DX256__) || defined(__MK66FX1M0__)
 #define HAS_FP_MAP
 #endif
 
@@ -28,6 +28,13 @@
 #define FLASH_END ((void*)0x00040000)
 #define RAM_START ((void*)0x1FFF8000)
 #define RAM_END   ((void*)0x2FFFFFFF)
+#endif
+
+#ifdef __MK66FX1M0__
+#define FLASH_START ((void*)0x0)
+#define FLASH_END ((void*)0x000FFFFF)
+#define RAM_START ((void*)0x1FFF0000)
+#define RAM_END   ((void*)0x2002FFFF)
 #endif
 
 #ifdef __IMXRT1062__
