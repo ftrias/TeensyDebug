@@ -131,6 +131,7 @@ public:
 
 class Debug : public Print, public DebugFileIO {
 public:
+  int begin(int baud) { return 1; }
   int begin(Stream *device = NULL);
   int begin(Stream &device) { return begin(&device); }
   int setBreakpoint(void *p);
@@ -148,7 +149,8 @@ public:
     return gdb_out_write(buffer, size);
   }
 	virtual int availableForWrite(void)		{ return 128; }
-	virtual void flush() { }	
+	virtual void flush() { }
+  operator bool() { return true; }
 };
 
 extern Debug debug;
