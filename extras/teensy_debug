@@ -186,16 +186,17 @@ def installGDB():
   if not os.path.exists(DEST):
     os.makedirs(DEST)
 
-  for i in ("README.md", "library.properties", "keywords.txt", "license.txt", "TeensyDebug.h", "TeensyDebug.cpp", "gdbstub.cpp"):
+  for i in ("../README.md", "../library.properties", "../keywords.txt", "../license.txt"):
     print("Copy %s to %s" % (i, DEST))
     shutil.copy(i, DEST)
 
-  print("Copy examples to %s" % (DEST))
-  try:
-    shutil.rmtree(DEST + '/examples')
-  except:
-    pass
-  shutil.copytree('examples', DEST + '/examples')
+  for dir in ("src", "examples"):
+    print("Copy %s to %s" % (dir, DEST))
+    try:
+      shutil.rmtree(DEST + '/'  + dir)
+    except:
+      pass
+    shutil.copytree('../' +  dir, DEST + '/'  + dir)
 
   print("\nInstallation complete\n")
 

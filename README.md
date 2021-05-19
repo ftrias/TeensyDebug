@@ -78,17 +78,17 @@ You can also do these things by hand and not use installer app for your platform
 Installing on Mac
 -------------------------------------------
 
-This tool requires Python, which is installed by default on Macs. Install by running `install-mac.command` located in the disribution directory. This script creates a new menu option in Arduino and copies itself to the tools directory. Then it will create a local library with the source files.
+This tool requires Python, which is installed by default on Macs. Install by running `install-mac.command` located in the `extras` directory. This script creates a new menu option in Arduino and copies itself to the tools directory. Then it will create a local library with the source files.
 
 Installing on Windows
 -------------------------------------------
 
-This tool is installed by running `teensy_debug.exe` as Administrator. Do this by right-clicking on the file and selecting `Run as administraor`. This program creates a new menu option in Arduino and copies itself to the tools directory. Then it will create a local library with the source files.
+This tool is installed by running `teensy_debug.exe` in `extras` as Administrator. Do this by right-clicking on the file and selecting `Run as administraor`. This program creates a new menu option in Arduino and copies itself to the tools directory. Then it will create a local library with the source files.
 
 Installing on Linux
 -------------------------------------------
 
-Run `install-linux.sh` to install. It assumes your Arduino is installed in `~/arduino`. If this is not so, pass the direction with the `-i=path` option. It will create a local library with the source files.
+Run `install-linux.sh` in `extras` to install. It assumes your Arduino is installed in `~/arduino`. If this is not so, pass the direction with the `-i=path` option. It will create a local library with the source files.
 
 Installing from ZIP file
 -------------------------------------------

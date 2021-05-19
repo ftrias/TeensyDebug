@@ -1,9 +1,9 @@
-DIST=license.txt TeensyDebug.h TeensyDebug.cpp gdbstub.cpp examples library.properties keywords.txt README.md teensy_debug.exe teensy_debug.py install-linux.sh install-mac.command install-windows.bat
+DIST=license.txt library.properties keywords.txt README.md src examples extras
 
-all: TeensyDebug.zip
+all: ../TeensyDebug.zip
 
-TeensyDebug.zip: $(DIST)
-	zip -r TeensyDebug.zip $(DIST)
+../TeensyDebug.zip: $(DIST)
+	cd ..; zip -r TeensyDebug.zip $(DIST)
 
-teensy_debug.exe:
-	build.bat
+extras/teensy_debug.exe:
+	cd extras; build.bat
