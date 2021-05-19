@@ -23,7 +23,7 @@ GDB Remote Serial Protocol provides a simple interface between GDB and a remote 
 [PC running GDB] <--(serial)--> [Teensy GDB stub]
 ```
 
-Since Teensduino comes with a GDB executable for ARM processors, there is no need to install it. This module comes with an installer (see below) that will create a new menu in Arduino that will enable GDB. However, it can also be used stand-alone as a regular Arduino library.
+Since Teensduino comes with a GDB executable for ARM processors, there is no need to install it. TeensyDebug comes with an installer (see below) that will create a new menu in Arduino that will enable GDB. However, it can also be used stand-alone as a regular Arduino library.
 
 Sample code and usage
 -------------------------------------------
