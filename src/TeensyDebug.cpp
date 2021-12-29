@@ -801,10 +801,6 @@ void debug_monitor() {
     "ldr r10, [r0, #56] \n" \
     "ldr r11, [r0, #60] \n"
 
-#pragma GCC push_options
-// don't optimize; probably overkill, but this is safer
-#pragma GCC optimize ("O0")
-
 void (*original_software_isr)() = NULL;
 void (*original_svc_isr)() = NULL;
 
@@ -941,8 +937,6 @@ void svc_call_table() {
     "nop \n"
  );  
 }
-
-#pragma GCC pop_options
 
 /**
  * @brief Return register value for a text representation.
