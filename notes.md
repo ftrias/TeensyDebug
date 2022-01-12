@@ -1,3 +1,7 @@
+20220110
+
+Remove -O0 from code and add PlatformIO instructions.
+
 20200615
 
 Using GDB with Teensy without hardware debugger, first Beta

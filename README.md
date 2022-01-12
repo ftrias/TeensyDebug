@@ -64,8 +64,49 @@ The `#pragma` will eliminate optimizations. If you don't use it, the compiler wi
 
 When you press Upload, the sketch will be compiled and uploaded to the Teensy. If you have enabled the menu options (see below for installation instructions), GDB will come up in a new window. If not, follow the Manual instructions farther down.
 
-Installing overview
+Installing
 -------------------------------------------
+
+TeensyDebug can be installed on PlatformIO or Arduino. See the relevant section below.
+
+Installing for PlatformIO
+===========================================
+
+Installing on Platform IO involves making a change to your `platform.ini` file. You need to change the `debug_port` item to match whatever port your systems assigns. In windows, use for form `\\.\COM9`.
+
+If you use PlatformIO, none of the other install steps in sections below this are necessary.
+
+```
+[env:teensy40]
+platform = teensy
+board = teensy40
+framework = arduino
+
+build_type = debug
+; See https://github.com/platformio/platform-teensy/issues/65
+build_unflags = -DUSB_SERIAL
+build_flags = -DUSB_DUAL_SERIAL
+debug_port = /dev/cu.usbmodem61684903 
+debug_tool = custom
+debug_load_mode = manual
+debug_server = 
+debug_init_cmds =
+  target extended-remote $DEBUG_PORT
+  $INIT_BREAK
+  define pio_reset_run_target
+  interrupt
+  tbreak loop
+  continue
+  end
+  define pio_restart_target
+  echo Restart is undefined for now.
+  end
+
+debug_init_break =
+```
+
+Installing for Arduino
+===========================================
 
 There is an installer for Mac, Linux and Windows. The installer does these things:
 
@@ -75,22 +116,22 @@ There is an installer for Mac, Linux and Windows. The installer does these thing
 
 You can also do these things by hand and not use installer app for your platform.
 
-Installing on Mac
+Installing for Arduino on Mac
 -------------------------------------------
 
 This tool requires Python, which is installed by default on Macs. Install by running `install-mac.command` located in the `extras` directory. This script creates a new menu option in Arduino and copies itself to the tools directory. Then it will create a local library with the source files.
 
-Installing on Windows
+Installing for Arduino on Windows
 -------------------------------------------
 
 This tool is installed by running `teensy_debug.exe` in `extras` as Administrator. Do this by right-clicking on the file and selecting `Run as administraor`. This program creates a new menu option in Arduino and copies itself to the tools directory. Then it will create a local library with the source files.
 
-Installing on Linux
+Installing for Arduino on Linux
 -------------------------------------------
 
 Run `install-linux.sh` in `extras` to install. It assumes your Arduino is installed in `~/arduino`. If this is not so, pass the direction with the `-i=path` option. It will create a local library with the source files.
 
-Installing from ZIP file
+Installing for Arduino from ZIP file
 -------------------------------------------
 
 If you install this library as a ZIP file from the Arduino menu, it will not install the additional menu options for running GDB after uploads. You will either have to do these things manually (see "Installing overview") or you will have to follow the "Running GDB manually" instructions a few sections below.
@@ -158,47 +199,8 @@ Program received signal SIGTRAP, Trace/breakpoint trap.
 (gdb) 
 ```
 
-Use with PlatformIO and VSCode
--------------------------------------------
-
-In the PJRC forum, AndyCap suggests using the following launch configuaration with VSCode:
-
-```JSON
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Launch",
-      "type": "cppdbg",
-      "request": "launch",
-      "miDebuggerPath": "/Applications/Arduino.app//Contents/Java/hardware/tools/arm/bin/arm-none-eabi-gdb",
-      "miDebuggerArgs": "--baud=115200",
-      "MIMode": "gdb",
-      "targetArchitecture": "arm",
-      "program": "firmware.elf",
-      "launchCompleteCommand": "None",
-      "filterStderr": false,
-      "filterStdout": false,
-      "externalConsole": false,
-      "cwd": "${workspaceRoot}",
-      "setupCommands": [
-        {"text": "set target-async off"},
-        {"text": "target extended-remote /dev/cu.usbserial"},   
-        ]
-    }
-  ]
-}
-```
-
-If using a physical serial port, this requires setting the baud rate in your sketch as in:
-
-```C++
-  Serial1.begin(115200);
-  debug.begin(Serial1);
-```
-
-Methods of `debug` object
--------------------------------------------
+The `debug` object
+===========================================
 
 The library exports an object named `debug` of class `Debug`. Class `Debug` has a number of methods for manipulating the debugging system. In addition, class `Debug` inherits from `Print` so you can output messages to the GDB console.
 
