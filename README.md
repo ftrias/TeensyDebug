@@ -49,7 +49,7 @@ void setup() {
 
   // debug.begin(Serial1);   // or use physical serial port
 
-  halt();                    // stop on startup; if not, Teensy keeps running and you
+  halt_cpu();                    // stop on startup; if not, Teensy keeps running and you
                              // have to set a breakpoint or use Ctrl-C.
 }
 
