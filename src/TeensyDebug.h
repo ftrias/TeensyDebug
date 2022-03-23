@@ -157,7 +157,7 @@ extern Debug debug;
 
 #define breakpoint(n) {if (hcdebug_isEnabled(n)) {asm volatile("svc #0x11");}}
 #define breakpoint_enable(n) {hcdebug_setBreakpoint(n);}
-#define halt() {asm volatile("svc #0x11");}
+#define halt_cpu() {asm volatile("svc #0x11");}
 // #define triggerBreakpoint() { NVIC_SET_PENDING(IRQ_SOFTWARE); }
 #define DEBUGRUN __attribute__ ((section(".fastrun"), noinline, noclone ))
 
