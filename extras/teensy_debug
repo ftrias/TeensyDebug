@@ -371,17 +371,37 @@ def runGDB(arguments):
 
   # run command for programming Teensy
   post = convertPathSlashes('%s/teensy_post_compile' % args.tools)
+  print("Programming...")
   if os.name == 'nt':
+    print(post,arguments)
     x = subprocess.run([post] + arguments)
     x = x.returncode
   else:
     argline = '" "'.join(arguments)
     cmd1='"%s" "%s"' % (post, argline)
     x = os.system(cmd1)
+  print("...done!")
 
   # something went wrong with programming
   if x != 0:
     exit(x)
+    
+  # wait for programming to complete properly, as teensy_post_compile
+  # returns before this, and even then the ports may not yet be enumerated
+  # Shows as "Bootloader" while loading, then blank while enumerating: we
+  # exit after these have occurred. We don't check for Serial in the
+  # final output, in case the user messed up!
+  ready = convertPathSlashes('%s/teensy_ports' % args.tools)
+  for i in range(0,20):
+    time.sleep(0.5)
+    x = subprocess.run([ready,'-L'],capture_output=True)
+    stdo = str(x.stdout)
+    print(stdo)
+    mtch = re.search('Bootloader',stdo)
+    if not mtch and b'' != x.stdout:
+        print("Ready!")
+        break
+    
 
   # if gdb option is off or missing, don't run gdb so just end here
   if args.has("gdb"):
