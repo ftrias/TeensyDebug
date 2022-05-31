@@ -18,6 +18,8 @@
 #define HAS_FP_MAP
 #endif
 
+#define IRQ_DEBUG IRQ_SOFTWARE+1
+
 //
 // Need to know where RAM starts/stops so we know where
 // software breakpoints are possible
@@ -155,9 +157,9 @@ public:
 
 extern Debug debug;
 
-#define breakpoint(n) {if (hcdebug_isEnabled(n)) {asm volatile("svc #0x11");}}
-#define breakpoint_enable(n) {hcdebug_setBreakpoint(n);}
-#define halt_cpu() {asm volatile("svc #0x11");}
+#define breakpoint(n) do {if (hcdebug_isEnabled(n)) {asm volatile("svc #0x11");}} while (0)
+#define breakpoint_enable(n) do {hcdebug_setBreakpoint(n);} while (0)
+#define halt_cpu() do {asm volatile("svc #0x11");} while (0)
 // #define triggerBreakpoint() { NVIC_SET_PENDING(IRQ_SOFTWARE); }
 #define DEBUGRUN __attribute__ ((section(".fastrun"), noinline, noclone ))
 

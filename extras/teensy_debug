@@ -269,7 +269,7 @@ def getPort():
         break
     time.sleep(0.5)
 
-  # counldn't find it within timeout?
+  # couldn't find it within timeout?
   if len(stdout) < 10:
     print("Could not find Teensy")
     return None
@@ -373,7 +373,6 @@ def runGDB(arguments):
   post = convertPathSlashes('%s/teensy_post_compile' % args.tools)
   print("Programming...")
   if os.name == 'nt':
-    print(post,arguments)
     x = subprocess.run([post] + arguments)
     x = x.returncode
   else:
@@ -394,10 +393,11 @@ def runGDB(arguments):
   ready = convertPathSlashes('%s/teensy_ports' % args.tools)
   for i in range(0,20):
     time.sleep(0.5)
-    x = subprocess.run([ready,'-L'],capture_output=True)
+    x = subprocess.run([ready,'-L'],capture_output=True) # OK for Linux / macOS? Should be...
     stdo = str(x.stdout)
     mtch = re.search('Bootloader',stdo)
     if not mtch and b'' != x.stdout:
+        print('Enumerated as %s' % stdo)
         break
     
 
