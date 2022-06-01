@@ -18,7 +18,10 @@
 #define HAS_FP_MAP
 #endif
 
-#define IRQ_DEBUG IRQ_SOFTWARE+1
+// Change this (with care!) if you think the debug interrupt is
+// interfering with library operation. For example, you can
+// use IRQ_SOFTWARE+1 (a.k.a. IRQ_Reserved2) for Teensy 4.x
+#define IRQ_DEBUG IRQ_SOFTWARE
 
 //
 // Need to know where RAM starts/stops so we know where
@@ -41,7 +44,7 @@
 
 #ifdef __IMXRT1062__
 #define FLASH_START ((void*)0x60000000)
-#define FLASH_END ((void*)0x601f0000)
+#define FLASH_END ((void*)0x601f0000) // only true for Teensy 4.0
 #define RAM_START ((void*)0x00000020)
 #define RAM_END   ((void*)0x20280000)
 #endif
