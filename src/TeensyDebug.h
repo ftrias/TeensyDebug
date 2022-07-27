@@ -93,11 +93,15 @@ int gdb_file_io(const char *msg);
 extern int file_io_errno;
 extern int gdb_active_flag;
 
+// May have been defined elsewhere: assume O_CREAT stands for all
+#if !defined(O_CREAT)
 #define O_CREAT         0x200
 #define O_APPEND        8
 #define O_RDONLY        0
 #define O_WRONLY        1
 #define O_RDWR          2
+#endif // !defined(O_CREAT)
+
 class DebugFileIO {
 private:
   char gdb_io[256];
