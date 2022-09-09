@@ -18,6 +18,11 @@
 #define HAS_FP_MAP
 #endif
 
+// Change this (with care!) if you think the debug interrupt is
+// interfering with library operation. For example, you can
+// use IRQ_SOFTWARE+1 (a.k.a. IRQ_Reserved2) for Teensy 4.x
+#define IRQ_DEBUG IRQ_SOFTWARE
+
 //
 // Need to know where RAM starts/stops so we know where
 // software breakpoints are possible
@@ -39,7 +44,7 @@
 
 #ifdef __IMXRT1062__
 #define FLASH_START ((void*)0x60000000)
-#define FLASH_END ((void*)0x601f0000)
+#define FLASH_END ((void*)0x601f0000) // only true for Teensy 4.0
 #define RAM_START ((void*)0x00000020)
 #define RAM_END   ((void*)0x20280000)
 #endif
@@ -88,11 +93,15 @@ int gdb_file_io(const char *msg);
 extern int file_io_errno;
 extern int gdb_active_flag;
 
+// May have been defined elsewhere: assume O_CREAT stands for all
+#if !defined(O_CREAT)
 #define O_CREAT         0x200
 #define O_APPEND        8
 #define O_RDONLY        0
 #define O_WRONLY        1
 #define O_RDWR          2
+#endif // !defined(O_CREAT)
+
 class DebugFileIO {
 private:
   char gdb_io[256];
@@ -155,9 +164,9 @@ public:
 
 extern Debug debug;
 
-#define breakpoint(n) {if (hcdebug_isEnabled(n)) {asm volatile("svc #0x11");}}
-#define breakpoint_enable(n) {hcdebug_setBreakpoint(n);}
-#define halt_cpu() {asm volatile("svc #0x11");}
+#define breakpoint(n) do {if (hcdebug_isEnabled(n)) {asm volatile("svc #0x11");}} while (0)
+#define breakpoint_enable(n) do {hcdebug_setBreakpoint(n);} while (0)
+#define halt_cpu() do {asm volatile("svc #0x11");} while (0)
 // #define triggerBreakpoint() { NVIC_SET_PENDING(IRQ_SOFTWARE); }
 #define DEBUGRUN __attribute__ ((section(".fastrun"), noinline, noclone ))
 
