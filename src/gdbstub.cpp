@@ -541,6 +541,20 @@ int isValidAddress(uint32_t addr, int sz=0) {
       return 1;
     }
   }
+#if defined(__IMXRT1062__)
+  // allow read-out of EXTMEM if it is fitted
+  else if (external_psram_size > 0) // EXTMEM size in MBytes
+  {
+    if (addr >= (uint32_t) &_extram_start && addr <= (uint32_t) (&_extram_start + (external_psram_size * 256 * 1024))) 
+    {
+      if (addr+sz-1 >= (uint32_t) &_extram_start && addr+sz-1 <= (uint32_t) (&_extram_start + (external_psram_size * 256 * 1024))) 
+      {
+        return 1;
+      }
+    }
+  }
+#endif // defined(__IMXRT1062__)
+  
   return 0;
 }
 

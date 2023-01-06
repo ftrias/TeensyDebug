@@ -47,6 +47,8 @@
 #define FLASH_END ((void*)0x601f0000) // only true for Teensy 4.0
 #define RAM_START ((void*)0x00000020)
 #define RAM_END   ((void*)0x20280000)
+extern unsigned long _extram_start;
+extern uint8_t external_psram_size;
 #endif
 
 #include <usb_desc.h>
@@ -61,6 +63,12 @@
 
 #if defined(HAS_FP_MAP) || defined(GDB_DUAL_SERIAL) || defined(GDB_TAKE_OVER_SERIAL)
 #define REMAP_SETUP
+#endif
+
+// Define a symbol if GDB is enabled in the Arduino IDE: helps
+// with conditional compilation for e.g. halt_cpu()
+#if defined(GDB_DUAL_SERIAL) || defined(GDB_TAKE_OVER_SERIAL) || defined(GDB_MANUAL_SELECTION)
+#define GDB_IS_ENABLED
 #endif
 
 // If this is used internally, not need to remap
