@@ -541,7 +541,8 @@ int isValidAddress(uint32_t addr, int sz=0) {
       return 1;
     }
   }
-#if defined(__IMXRT1062__)
+  
+#if defined(ARDUINO_TEENSY41)
   // allow read-out of EXTMEM if it is fitted
   else if (external_psram_size > 0) // EXTMEM size in MBytes
   {
@@ -553,7 +554,7 @@ int isValidAddress(uint32_t addr, int sz=0) {
       }
     }
   }
-#endif // defined(__IMXRT1062__)
+#endif // defined(ARDUINO_TEENSY41)
   
   return 0;
 }

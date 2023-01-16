@@ -47,8 +47,16 @@
 #define FLASH_END ((void*)0x601f0000) // only true for Teensy 4.0
 #define RAM_START ((void*)0x00000020)
 #define RAM_END   ((void*)0x20280000)
+#if defined(ARDUINO_TEENSY41)
 extern unsigned long _extram_start;
 extern uint8_t external_psram_size;
+#undef FLASH_END 
+#define FLASH_END ((void*)0x607c0000) // only true for Teensy 4.1
+#endif // defined(ARDUINO_TEENSY41)
+#if defined(ARDUINO_TEENSY_MICROMOD)
+#undef FLASH_END 
+#define FLASH_END ((void*)0x60fc0000) // only true for Teensy MM
+#endif // defined(ARDUINO_TEENSY41)
 #endif
 
 #include <usb_desc.h>
