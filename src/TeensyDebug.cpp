@@ -816,7 +816,7 @@ void debug_call_isr() {
   asm volatile(SAVE_REGISTERS);
   __enable_irq();
   asm volatile("push {lr}");
-  NVIC_CLEAR_PENDING(IRQ_DEBUG);
+  NVIC_CLEAR_PENDING(IRQ_SOFTWARE);
 
   // Are we in debug mode? If not, just jump to original ISR
   if (debugenabled == 0) {
@@ -863,7 +863,7 @@ void debug_call_isr_setup() {
   debugcount++;
   debugenabled = 1;
   // process in lower priority so services can keep running
-  NVIC_SET_PENDING(IRQ_DEBUG); 
+  NVIC_SET_PENDING(IRQ_SOFTWARE); 
 }
 
 #if 1
@@ -1209,11 +1209,11 @@ void debug_init() {
   _VectorsRam[11] = svcall_isr;
 
   // chain the software ISR handler
-  original_software_isr = _VectorsRam[IRQ_DEBUG + 16];
+  original_software_isr = _VectorsRam[IRQ_SOFTWARE + 16];
 
-  _VectorsRam[IRQ_DEBUG + 16] = debug_call_isr;
-  NVIC_SET_PRIORITY(IRQ_DEBUG, 208); // 255 = lowest priority
-  NVIC_ENABLE_IRQ(IRQ_DEBUG);
+  _VectorsRam[IRQ_SOFTWARE + 16] = debug_call_isr;
+  NVIC_SET_PRIORITY(IRQ_SOFTWARE, 208); // 255 = lowest priority
+  NVIC_ENABLE_IRQ(IRQ_SOFTWARE);
 
   debug_initBreakpoints();
 }
