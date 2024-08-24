@@ -1179,6 +1179,15 @@ void debug_init() {
 //  dumpmem(xtable, 32);
 #endif
 
+  // Recent startup.c has disabled writes to ITCM - re-enable those
+  // Various macros cribbed from there...
+#define READWRITE	SCB_MPU_RASR_AP(3)
+#define MEM_NOCACHE	SCB_MPU_RASR_TEX(1)
+#define SIZE_512K	(SCB_MPU_RASR_SIZE(18) | SCB_MPU_RASR_ENABLE)
+#define REGION(n)	(SCB_MPU_RBAR_REGION(n) | SCB_MPU_RBAR_VALID)
+  SCB_MPU_RBAR = 0x00000000 | REGION(1); // *** assumed *** ITCM
+  SCB_MPU_RASR = MEM_NOCACHE | READWRITE | SIZE_512K;
+
   debug_trace = 1;
 
   _VectorsRam[2] = call_nmi_isr;
