@@ -365,7 +365,7 @@ int debug_isBreakpoint(void *p) {
 }
 
 /*
- * Breakpint handlers
+ * Breakpoint handlers
  * 
  * During a breakpoint:
  * 1. The interrupt is initiated and registers are saved.
@@ -1179,7 +1179,8 @@ void debug_init() {
 //  dumpmem(xtable, 32);
 #endif
 
-  // Recent startup.c has disabled writes to ITCM - re-enable those
+#if defined(__IMXRT1062__) // doesn't apply to Teensy 3.x
+  // Recent teensy4/startup.c has disabled writes to ITCM - re-enable those
   // Various macros cribbed from there...
 #define READWRITE	SCB_MPU_RASR_AP(3)
 #define MEM_NOCACHE	SCB_MPU_RASR_TEX(1)
@@ -1187,6 +1188,7 @@ void debug_init() {
 #define REGION(n)	(SCB_MPU_RBAR_REGION(n) | SCB_MPU_RBAR_VALID)
   SCB_MPU_RBAR = 0x00000000 | REGION(1); // *** assumed *** ITCM
   SCB_MPU_RASR = MEM_NOCACHE | READWRITE | SIZE_512K;
+#endif // defined(__IMXRT1062__)
 
   debug_trace = 1;
 
